@@ -32,6 +32,55 @@ CONFIG_FILE = "config.json"
 IGNORE_CONTENT_CHANGES = True
 
 
+def _describe_permissions(mode_str):
+    """
+    Rend les permissions compréhensibles pour les non-initiés.
+
+    Exemple: "0o644" ->
+      "0o644 | Utilisateur: rw- (lecture+écriture) | Groupe: r-- (lecture) | Autres: r-- (lecture)"
+    """
+    if not mode_str:
+        return "N/A"
+
+    try:
+        # mode_str vient de utils.metadata.get_file_metadata(): oct(...) -> "0o644"
+        mode_int = int(str(mode_str), 8)
+    except ValueError:
+        return str(mode_str)
+
+    def triplet(n):
+        return "".join(
+            [
+            "r" if (n & 4) else "-",
+            "w" if (n & 2) else "-",
+            "x" if (n & 1) else "-",
+            ]
+        )
+
+    def triplet_words(s):
+        rights = []
+        if "r" in s:
+            rights.append("lecture")
+        if "w" in s:
+            rights.append("écriture")
+        if "x" in s:
+            rights.append("exécution")
+        return "+".join(rights) if rights else "aucun"
+
+    u = (mode_int >> 6) & 0b111
+    g = (mode_int >> 3) & 0b111
+    o = mode_int & 0b111
+    u_s = triplet(u)
+    g_s = triplet(g)
+    o_s = triplet(o)
+    return (
+        f"{mode_str} | "
+        f"Utilisateur: {u_s} ({triplet_words(u_s)}) | "
+        f"Groupe: {g_s} ({triplet_words(g_s)}) | "
+        f"Autres: {o_s} ({triplet_words(o_s)})"
+    )
+
+
 def load_config():
     """
     Charge la configuration depuis le fichier JSON.
@@ -189,7 +238,7 @@ def list_watch():
         if meta:
             # Fichier présent avec métadonnées enregistrées
             print(f"Statut : présent et surveillé")
-            print(f"  - Permissions : {meta.get('mode', 'N/A')}")
+            print(f"  - Permissions : {_describe_permissions(meta.get('mode'))}")
             print(f"  - Propriétaire : {meta.get('uid', 'N/A')}:{meta.get('gid', 'N/A')}")
             print(f"  - Dernière modification : {meta.get('mtime', 'N/A')}")
         else:
@@ -320,7 +369,8 @@ class MonitorHandler(FileSystemEventHandler):
             # Vérifier les permissions (mode)
             if old.get("mode") != new.get("mode"):
                 changes.append(
-                    f"Permissions modifiées : {old.get('mode')} -> {new.get('mode')}"
+                    "Permissions modifiées : "
+                    f"{_describe_permissions(old.get('mode'))} -> {_describe_permissions(new.get('mode'))}"
                 )
 
             # Vérifier le propriétaire et le groupe (Unix seulement)
