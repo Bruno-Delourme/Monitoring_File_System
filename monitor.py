@@ -27,6 +27,10 @@ from utils.logger import (
 # Fichier de configuration JSON pour stocker les paramètres de surveillance
 CONFIG_FILE = "config.json"
 
+# Si True, aucune alerte n'est émise quand le contenu du fichier change
+# (mtime / sha256). Les changements de "droits" (mode/uid/gid) restent actifs.
+IGNORE_CONTENT_CHANGES = True
+
 
 def load_config():
     """
@@ -326,17 +330,20 @@ class MonitorHandler(FileSystemEventHandler):
                     f"{old.get('uid')}:{old.get('gid')} -> {new.get('uid')}:{new.get('gid')}"
                 )
 
-            # Vérifier la date de modification
-            if old.get("mtime") != new.get("mtime"):
-                changes.append(
-                    f"Date de modification changée : {old.get('mtime')} -> {new.get('mtime')}"
-                )
+            # Option: on peut aussi alerter sur les changements de contenu.
+            # Par défaut (IGNORE_CONTENT_CHANGES=True), on ignore mtime/sha256.
+            if not IGNORE_CONTENT_CHANGES:
+                # Vérifier la date de modification
+                if old.get("mtime") != new.get("mtime"):
+                    changes.append(
+                        f"Date de modification changée : {old.get('mtime')} -> {new.get('mtime')}"
+                    )
 
-            # Vérifier l'intégrité via le hash SHA256
-            if old.get("sha256") != new.get("sha256"):
-                changes.append(
-                    f"Intégrité modifiée (SHA256) : {old.get('sha256')} -> {new.get('sha256')}"
-                )
+                # Vérifier l'intégrité via le hash SHA256
+                if old.get("sha256") != new.get("sha256"):
+                    changes.append(
+                        f"Intégrité modifiée (SHA256) : {old.get('sha256')} -> {new.get('sha256')}"
+                    )
 
         # Si des changements ont été détectés, alerter et mettre à jour la config
         if changes:
