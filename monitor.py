@@ -81,6 +81,23 @@ def _describe_permissions(mode_str):
     )
 
 
+def _describe_state(meta):
+    """
+    Rend un état de fichier lisible pour les non-initiés.
+
+    meta est le dictionnaire produit par get_file_metadata().
+    """
+    if not meta:
+        return "N/A"
+
+    exists = meta.get("exists", False)
+    mode_desc = _describe_permissions(meta.get("mode"))
+    uid = meta.get("uid", "N/A")
+    gid = meta.get("gid", "N/A")
+    mtime = meta.get("mtime", "N/A")
+    return f"exists={exists} | {mode_desc} | uid={uid} | gid={gid} | mtime={mtime}"
+
+
 def load_config():
     """
     Charge la configuration depuis le fichier JSON.
@@ -407,10 +424,18 @@ class MonitorHandler(FileSystemEventHandler):
             for change in changes:
                 log_and_print(f" - {change}", level="warning", color=COLOR_YELLOW)
 
-            # Afficher l'ancien et le nouvel état pour comparaison
+            # Afficher l'ancien et le nouvel état sous forme lisible
             if old:
-                log_and_print(f" - Ancien état : {old}", level="warning")
-            log_and_print(f" - Nouvel état : {new}", level="warning")
+                log_and_print(f" - Etat précédent : {_describe_state(old)}", level="warning", color=COLOR_CYAN)
+            else:
+                log_and_print(f" - Etat précédent : N/A", level="warning", color=COLOR_CYAN)
+
+            log_and_print(f" - Etat actuel : {_describe_state(new)}", level="warning", color=COLOR_CYAN)
+
+            # Garder aussi les états bruts pour débogage (utile en dev)
+            if old:
+                log_and_print(f" - Ancien état (brut) : {old}", level="warning")
+            log_and_print(f" - Nouvel état (brut) : {new}", level="warning")
 
             # Sauvegarder les nouvelles métadonnées
             config["file_metadata"] = new
