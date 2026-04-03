@@ -4,4 +4,4 @@ Authentification CLI désactivée pour les tests (identifiants valides en variab
 import os
 
 os.environ.setdefault("FSM_USERNAME", "Laurent")
-os.environ.setdefault("FSM_PASSWORD", "lemotdepasse123!!")
+os.environ.setdefault("FSM_PASSWORD", "motdepasse123!!")
