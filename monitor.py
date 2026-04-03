@@ -1004,7 +1004,8 @@ def interactive_menu():
         print("6. Afficher la configuration actuelle")
         print("7. Modifier les permissions d'un fichier surveillé")
         print("8. Lancer la surveillance")
-        print("9. Quitter")
+        print("9. Lancer l'interface web (panel navigateur)")
+        print("10. Quitter")
 
         choice = input("Choix : ").strip()
 
@@ -1074,8 +1075,24 @@ def interactive_menu():
                 interval = 1
             start_monitor(scan_interval=interval)
 
-        # 9) quitter
+        # 9) interface web (Flask)
         elif choice == "9":
+            import web_app
+
+            host = input("Adresse d'écoute (Entrée = 0.0.0.0) : ").strip() or "0.0.0.0"
+            port_raw = input("Port (Entrée = 5000) : ").strip() or "5000"
+            try:
+                port = int(port_raw)
+            except ValueError:
+                port = 5000
+            log_and_print(
+                f"[WEB] Ouverture du panel — http://127.0.0.1:{port} (Ctrl+C pour arrêter)",
+                color=COLOR_CYAN,
+            )
+            web_app.run_web(host=host, port=port, debug=False)
+
+        # 10) quitter
+        elif choice == "10":
             print("Fermeture.")
             break
 
