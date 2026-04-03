@@ -1,3 +1,8 @@
+# Bytecode Python (ne pas versionner)
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Secrets interface web (ne pas committer en production)
 .web_secret_key
 web_auth.json

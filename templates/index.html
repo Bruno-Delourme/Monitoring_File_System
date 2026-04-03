@@ -65,19 +65,59 @@
       background: var(--surface2); border: 1px solid var(--border); transition: all .3s;
     }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background .3s; }
-    #status-pill.connected   { border-color: var(--green-s); color: var(--green-s); }
+    /* Jaune : en attente de flux SSE (connexion / reconnexion) */
+    #status-pill.connecting {
+      border-color: rgba(250, 204, 21, 0.65);
+      color: #fde047;
+      background: rgba(234, 179, 8, 0.1);
+      box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.12), 0 0 14px rgba(234, 179, 8, 0.18);
+    }
+    #status-pill.connecting .dot { background: #eab308; animation: pulse 1.25s infinite; }
+    #status-pill.connected   { border-color: var(--green-s); color: var(--green-s); box-shadow: none; }
     #status-pill.connected .dot { background: var(--green-s); animation: pulse 1.8s infinite; }
-    #status-pill.disconnected { border-color: var(--red); color: var(--red); }
+    #status-pill.disconnected { border-color: var(--red); color: var(--red); box-shadow: none; }
     #status-pill.disconnected .dot { background: var(--red); }
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
 
-    /* ── Header buttons ──────────────────────────────────────── */
+    /* ── Header actions (même logique que #status-pill : bordure + couleur + léger halo) ── */
     .header-btn {
-      padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--surface2); color: var(--muted);
-      font-size: 12px; cursor: pointer; transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .25px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, color .2s, box-shadow .2s;
+      border: 1px solid;
+      text-decoration: none;
     }
-    .header-btn:hover { border-color: var(--red); color: var(--text); }
+    .header-btn-discord {
+      border-color: rgba(167, 139, 250, 0.65);
+      color: #c4b5fd;
+      background: rgba(124, 58, 237, 0.14);
+      box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.12), 0 0 16px rgba(124, 58, 237, 0.18);
+    }
+    .header-btn-discord:hover {
+      border-color: #a78bfa;
+      color: #ede9fe;
+      background: rgba(124, 58, 237, 0.28);
+      box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.25), 0 0 20px rgba(124, 58, 237, 0.28);
+    }
+    .header-btn-logout {
+      border-color: rgba(248, 113, 113, 0.55);
+      color: #fca5a5;
+      background: rgba(220, 38, 38, 0.12);
+      box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.1), 0 0 14px rgba(220, 38, 38, 0.15);
+    }
+    .header-btn-logout:hover {
+      border-color: #f87171;
+      color: #fef2f2;
+      background: rgba(220, 38, 38, 0.26);
+      box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.3), 0 0 18px rgba(220, 38, 38, 0.25);
+    }
 
     /* ── Main ────────────────────────────────────────────────── */
     main { flex: 1; padding: 22px 26px; display: flex; flex-direction: column; gap: 18px; max-width: 1400px; width: 100%; margin: 0 auto; }
@@ -197,7 +237,7 @@
     #modal {
       background: var(--surface); border: 1px solid #3f1515;
       border-top: 3px solid var(--red);
-      border-radius: 10px; width: min(560px, 93vw); max-height: 82vh;
+      border-radius: 10px; width: min(640px, 94vw); max-height: 86vh;
       overflow: hidden; display: flex; flex-direction: column;
       box-shadow: 0 24px 80px rgba(0,0,0,.85);
       animation: modalIn .18s ease;
@@ -219,7 +259,49 @@
     .modal-ts { font-size: 10px; color: var(--muted); margin-top: 3px; }
     .modal-close { color: var(--muted); font-size: 17px; cursor: pointer; flex-shrink: 0; line-height: 1; }
     .modal-close:hover { color: var(--text); }
-    .modal-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .modal-body { padding: 16px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── Alerte synthétique + détails repliables ─────────────── */
+    .alert-modal-root { display: flex; flex-direction: column; gap: 4px; }
+    .alert-summary { display: flex; flex-direction: column; gap: 14px; }
+    .alert-section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1.15px;
+      color: var(--muted); font-weight: 800; margin: 0 0 2px 0;
+    }
+    .alert-section-title.spaced { margin-top: 4px; }
+    .alert-section-sub { font-size: 12.5px; color: var(--text); line-height: 1.5; margin: 0 0 6px 0; }
+    .alert-section-sub em { color: var(--muted); font-style: normal; font-weight: 600; }
+    .alert-muted { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin: 0; }
+    .alert-muted strong { color: var(--text); font-weight: 600; }
+    .alert-bullets { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+    .alert-bullets li { margin-bottom: 6px; }
+    .alert-cap-list { margin: 4px 0 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+    .alert-cap-list li { margin-bottom: 8px; }
+    .alert-cap-list strong { color: var(--text); font-weight: 600; }
+    .alert-warn { color: var(--orange); }
+
+    details.alert-tech {
+      margin-top: 6px; border: 1px solid var(--border); border-radius: 8px;
+      background: #0a0a0a; overflow: hidden;
+    }
+    details.alert-tech summary {
+      cursor: pointer; padding: 12px 14px; font-size: 11.5px; font-weight: 600;
+      color: var(--muted); list-style: none; user-select: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    details.alert-tech summary::-webkit-details-marker { display: none; }
+    details.alert-tech summary::before { content: '▸'; font-size: 10px; opacity: .7; transition: transform .15s; }
+    details.alert-tech[open] summary::before { transform: rotate(90deg); }
+    details.alert-tech[open] summary { border-bottom: 1px solid var(--border); color: var(--text); background: var(--surface2); }
+    .alert-tech-inner { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; max-height: min(42vh, 380px); overflow-y: auto; }
+    .alert-tech-block { display: flex; flex-direction: column; gap: 6px; }
+    .alert-tech-label { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
+    .alert-tech-pre {
+      font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+      font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-all;
+      background: var(--surface2); padding: 10px 12px; border-radius: 6px;
+      border: 1px solid var(--border); margin: 0; color: var(--text);
+    }
 
     .modal-detail {
       font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 11.5px; line-height: 1.8;
@@ -323,11 +405,11 @@
     Surveillance Fichiers
     <em>monitor.log</em>
   </div>
-  <button class="header-btn" onclick="openDiscordModal()" title="Configurer Discord">⚙ Discord</button>
-  <a class="header-btn" href="/logout" title="Se déconnecter" style="text-decoration:none;">Déconnexion</a>
-  <div id="status-pill">
+  <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Configurer les notifications Discord">⚙ Discord</button>
+  <a class="header-btn header-btn-logout" href="/logout" title="Se déconnecter">Déconnexion</a>
+  <div id="status-pill" class="connecting">
     <div class="dot"></div>
-    <span id="status-text">Connexion...</span>
+    <span id="status-text">Connexion…</span>
   </div>
 </header>
 
@@ -430,12 +512,6 @@ function parseOctalDigit(n) {
   return parts.length ? parts.join(' + ') : 'Aucun accès';
 }
 
-function describeOctalMode(octalStr) {
-  const p = formatOctalMode(octalStr);
-  if (typeof p === 'string') return String(octalStr);
-  return `${p.raw} (propriétaire : ${p.owner}; groupe : ${p.group}; autres : ${p.others})`;
-}
-
 function formatOctalMode(octalStr) {
   const s = String(octalStr).replace(/^0[oO]/, '');
   if (!s || s.length < 3) return octalStr;
@@ -458,30 +534,6 @@ function formatOctalMode(octalStr) {
     specials,
     raw: octalStr,
   };
-}
-
-function renderPermBlock(octalStr) {
-  const p = formatOctalMode(octalStr);
-  if (typeof p === 'string') return escHtml(octalStr);
-
-  let html = `<div class="d-perm-block">`;
-  html += `<div class="d-perm-row"><span class="d-perm-actor">Propriétaire :</span><span>${escHtml(p.owner)}</span></div>`;
-  html += `<div class="d-perm-row"><span class="d-perm-actor">Groupe :</span>      <span>${escHtml(p.group)}</span></div>`;
-  html += `<div class="d-perm-row"><span class="d-perm-actor">Autres :</span>      <span>${escHtml(p.others)}</span></div>`;
-  for (const s of p.specials) {
-    html += `<div class="d-special">⚠ ${escHtml(s)}</div>`;
-  }
-  html += `</div>`;
-  return html;
-}
-
-function formatUid(uid) {
-  return String(uid) === '0' ? `0 (root)` : String(uid);
-}
-
-function translateStateValue(key, value) {
-  if (key === 'mode') return escHtml(describeOctalMode(value));
-  return /^0[oO]\d+$/.test(String(value)) ? escHtml(describeOctalMode(value)) : escHtml(value);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -511,83 +563,164 @@ function highlight(msg) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Modal alerte — rendu des détails en français
+   Modal alerte — vue synthétique + détails techniques repliables
    ───────────────────────────────────────────────────────────── */
-function renderDetail(detail) {
-  const div = document.createElement('div');
-  detail = String(detail).replace(/^\s*-\s*/, '').trim();
+function classifyAlertDetails(details) {
+  const out = {
+    permFullLine: null,
+    otherBullets: [],
+    etatPrev: null,
+    etatActuel: null,
+    brutOld: null,
+    brutNew: null,
+  };
+  for (const raw of details) {
+    const d = String(raw).replace(/^\s*-\s*/, '').trim();
+    if (/^Permissions modifi[ée]es\s*:/i.test(d)) {
+      out.permFullLine = d;
+      continue;
+    }
+    if (/^État précédent\s*:/i.test(d) || /^Etat précédent\s*:/i.test(d)) {
+      out.etatPrev = d;
+      continue;
+    }
+    if (/^État actuel\s*:/i.test(d) || /^Etat actuel\s*:/i.test(d)) {
+      out.etatActuel = d;
+      continue;
+    }
+    if (/^Ancien état \(brut\)\s*:/i.test(d)) {
+      out.brutOld = d;
+      continue;
+    }
+    if (/^Nouvel état \(brut\)\s*:/i.test(d)) {
+      out.brutNew = d;
+      continue;
+    }
+    out.otherBullets.push(d);
+  }
+  return out;
+}
 
-  // "Permissions modifiées : 0oXXX -> 0oYYY"
-  const permMatch = detail.match(/^Permissions modifi[ée]es\s*:\s*(0[oO]\d+)\s*->\s*(0[oO]\d+)$/i);
-  if (permMatch) {
-    div.className = 'modal-detail perm';
-    div.innerHTML = `<span class="d-label">Modification des permissions</span>`
-      + `<div style="display:flex;gap:24px;flex-wrap:wrap;">`
-      + `<div><div style="color:var(--muted);font-size:10px;margin-bottom:4px;">AVANT <span class="d-old">(${escHtml(permMatch[1])})</span></div>${renderPermBlock(permMatch[1])}</div>`
-      + `<div><div style="color:var(--muted);font-size:10px;margin-bottom:4px;">APRÈS <span class="d-new">(${escHtml(permMatch[2])})</span></div>${renderPermBlock(permMatch[2])}</div>`
-      + `</div>`;
-    return div;
+function extractOctalsFromPermLine(line) {
+  const matches = String(line).match(/0[oO][0-7]+/g);
+  if (!matches || matches.length < 2) return null;
+  return { oldMode: matches[0], newMode: matches[matches.length - 1] };
+}
+
+function extractAfterFirstColonLabel(line) {
+  const idx = String(line).indexOf(' : ');
+  return idx !== -1 ? line.substring(idx + 3) : line;
+}
+
+function renderCapabilitiesList(octalStr) {
+  const p = formatOctalMode(octalStr);
+  if (typeof p === 'string') {
+    return `<p class="alert-muted">Mode : ${escHtml(String(octalStr))}</p>`;
+  }
+  let html = '<ul class="alert-cap-list">';
+  html += `<li><strong>Propriétaire du fichier</strong> — ${escHtml(p.owner)}.</li>`;
+  html += `<li><strong>Membres du groupe</strong> — ${escHtml(p.group)}.</li>`;
+  html += `<li><strong>Tous les autres utilisateurs</strong> — ${escHtml(p.others)}.</li>`;
+  for (const s of p.specials) {
+    html += `<li class="alert-warn">⚠ ${escHtml(s)}</li>`;
+  }
+  html += '</ul>';
+  return html;
+}
+
+function buildAlertModalHtml(c) {
+  const parts = [];
+  const hasPerm = !!c.permFullLine;
+  const oct = hasPerm ? extractOctalsFromPermLine(c.permFullLine) : null;
+
+  parts.push('<div class="alert-modal-root">');
+  parts.push('<div class="alert-summary">');
+
+  if (c.otherBullets.length > 0) {
+    parts.push('<div class="alert-section-title">À retenir</div>');
+    parts.push('<ul class="alert-bullets">' + c.otherBullets.map(b => `<li>${escHtml(b)}</li>`).join('') + '</ul>');
   }
 
-  // "Propriétaire/groupe modifiés : uid:gid -> uid:gid"
-  const uidMatch = detail.match(/^Propri[ée]taire\/groupe modifi[ée]s\s*:\s*(\S+)\s*->\s*(\S+)$/i);
-  if (uidMatch) {
-    div.className = 'modal-detail perm';
-    const [oldU, oldG] = uidMatch[1].split(':');
-    const [newU, newG] = uidMatch[2].split(':');
-    div.innerHTML = `<span class="d-label">Changement de propriétaire</span>`
-      + `<div>Propriétaire (UID) : <span class="d-old">${escHtml(formatUid(oldU))}</span> <span class="d-arrow">→</span> <span class="d-new">${escHtml(formatUid(newU))}</span></div>`
-      + `<div>Groupe (GID) : <span class="d-old">${escHtml(formatUid(oldG))}</span> <span class="d-arrow">→</span> <span class="d-new">${escHtml(formatUid(newG))}</span></div>`;
-    return div;
-  }
-
-  // "Ancien état : {…}" ou "Nouvel état : {…}"
-  const isAncien = /^ancien/i.test(detail);
-  const isNouvel = /^nouvel/i.test(detail);
-  if (isAncien || isNouvel) {
-    div.className = 'modal-detail state';
-    const colonIdx = detail.indexOf(' : ');
-    const label    = colonIdx !== -1 ? detail.substring(0, colonIdx) : detail;
-    const value    = colonIdx !== -1 ? detail.substring(colonIdx + 3) : '';
-    const colorized = escHtml(value).replace(
-      /'([^']+)':\s*('([^']*)'|([^,}]+))/g,
-      (_, key, rawVal, strVal) =>
-        strVal !== undefined
-          ? `<span class="d-key">'${key}'</span>: <span class="d-str">'${translateStateValue(key, strVal)}'</span>`
-          : `<span class="d-key">'${key}'</span>: <span class="d-val">${translateStateValue(key, rawVal)}</span>`
+  if (hasPerm && oct) {
+    parts.push('<div class="alert-section-title spaced">Que peut faire ce fichier ? (état actuel)</div>');
+    parts.push(
+      `<p class="alert-muted">Les droits d'accès sont passés de <strong>${escHtml(oct.oldMode)}</strong> à <strong>${escHtml(oct.newMode)}</strong>.</p>`
     );
-    div.innerHTML = `<span class="d-label">${escHtml(label)}</span>${colorized}`;
-    return div;
+    parts.push(
+      '<p class="alert-section-sub">Ci-dessous, ce que signifie <em>lecture</em>, <em>écriture</em> et <em>exécution</em> pour chaque catégorie d\'utilisateurs :</p>'
+    );
+    parts.push(renderCapabilitiesList(oct.newMode));
+  } else if (hasPerm && !oct) {
+    parts.push('<div class="alert-section-title spaced">Droits d\'accès</div>');
+    parts.push(`<p class="alert-muted">${escHtml(c.permFullLine)}</p>`);
   }
 
-  // Ligne générique avec " -> "
-  if (detail.includes(' -> ')) {
-    div.className = 'modal-detail perm';
-    const colonIdx = detail.indexOf(' : ');
-    const label    = colonIdx !== -1 ? detail.substring(0, colonIdx) : '';
-    const rest     = colonIdx !== -1 ? detail.substring(colonIdx + 3) : detail;
-    const arrowIdx = rest.indexOf(' -> ');
-    const oldVal   = arrowIdx !== -1 ? rest.substring(0, arrowIdx) : rest;
-    const newVal   = arrowIdx !== -1 ? rest.substring(arrowIdx + 4) : '';
-    div.innerHTML  = `<span class="d-label">${escHtml(label)}</span>`
-      + `<span class="d-old">${escHtml(oldVal)}</span>`
-      + `<span class="d-arrow"> → </span>`
-      + `<span class="d-new">${escHtml(newVal)}</span>`;
-    return div;
+  const hasSummaryContent = c.otherBullets.length > 0 || hasPerm;
+  const hasTech =
+    c.etatPrev || c.etatActuel || c.brutOld || c.brutNew || hasPerm;
+
+  if (!hasSummaryContent && hasTech) {
+    parts.push(
+      '<p class="alert-muted">Résumé court non disponible pour cet événement. Ouvrez les détails techniques pour les métadonnées complètes (chemins, UID, dates, etc.).</p>'
+    );
   }
 
-  // Fallback
-  div.className  = 'modal-detail';
-  div.innerHTML  = escHtml(detail);
-  return div;
+  parts.push('</div>');
+
+  if (hasTech) {
+    parts.push(
+      '<details class="alert-tech"><summary>Détails techniques — développeur (chemins complets, UID, GID, dates, SHA, JSON…)</summary>'
+    );
+    parts.push('<div class="alert-tech-inner">');
+
+    if (hasPerm) {
+      parts.push('<div class="alert-tech-block">');
+      parts.push('<div class="alert-tech-label">Journal — ligne « permissions » complète</div>');
+      parts.push(`<pre class="alert-tech-pre">${escHtml(c.permFullLine)}</pre>`);
+      parts.push('</div>');
+    }
+    if (c.etatPrev) {
+      parts.push('<div class="alert-tech-block">');
+      parts.push('<div class="alert-tech-label">État précédent (texte journal)</div>');
+      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.etatPrev))}</pre>`);
+      parts.push('</div>');
+    }
+    if (c.etatActuel) {
+      parts.push('<div class="alert-tech-block">');
+      parts.push('<div class="alert-tech-label">État actuel (texte journal)</div>');
+      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.etatActuel))}</pre>`);
+      parts.push('</div>');
+    }
+    if (c.brutOld) {
+      parts.push('<div class="alert-tech-block">');
+      parts.push('<div class="alert-tech-label">Ancien état (dictionnaire brut)</div>');
+      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.brutOld))}</pre>`);
+      parts.push('</div>');
+    }
+    if (c.brutNew) {
+      parts.push('<div class="alert-tech-block">');
+      parts.push('<div class="alert-tech-label">Nouvel état (dictionnaire brut)</div>');
+      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.brutNew))}</pre>`);
+      parts.push('</div>');
+    }
+
+    parts.push('</div></details>');
+  }
+
+  parts.push('</div>');
+  return parts.join('');
 }
 
 function openAlertModal(log) {
   document.getElementById('modal-title').innerHTML = highlight(log.message);
   document.getElementById('modal-ts').textContent  = log.timestamp || '';
   const body = document.getElementById('modal-body');
-  body.innerHTML = '';
-  (log.details || []).forEach(d => body.appendChild(renderDetail(d)));
+  const details = log.details || [];
+  if (details.length === 0) {
+    body.innerHTML = '<p class="alert-muted">Aucun détail supplémentaire.</p>';
+  } else {
+    body.innerHTML = buildAlertModalHtml(classifyAlertDetails(details));
+  }
   document.getElementById('alert-overlay').classList.add('open');
 }
 function closeAlertModal()  { document.getElementById('alert-overlay').classList.remove('open'); }
@@ -848,18 +981,32 @@ async function loadHistory() {
 
 const statusPill = document.getElementById('status-pill');
 const statusText = document.getElementById('status-text');
-function setStatus(connected) {
-  statusPill.className  = connected ? 'connected' : 'disconnected';
-  statusText.textContent = connected ? 'En ligne' : 'Déconnecté';
+/** @param {boolean|null|undefined} state — true=en ligne, false=coupé, null/undefined=connexion en cours */
+function setStatus(state) {
+  if (state === true) {
+    statusPill.className = 'connected';
+    statusText.textContent = 'En ligne';
+  } else if (state === false) {
+    statusPill.className = 'disconnected';
+    statusText.textContent = 'Déconnecté';
+  } else {
+    statusPill.className = 'connecting';
+    statusText.textContent = 'Connexion…';
+  }
 }
 
 function connectSSE() {
+  setStatus(null);
   const es = new EventSource('/api/stream');
   es.onopen = () => setStatus(true);
   es.onmessage = e => {
     try { const log = JSON.parse(e.data); appendEntry(log); showToast(log); } catch {}
   };
-  es.onerror = () => { setStatus(false); es.close(); setTimeout(connectSSE, 3000); };
+  es.onerror = () => {
+    setStatus(false);
+    es.close();
+    setTimeout(connectSSE, 3000);
+  };
 }
 
 autoscrollBtn.classList.add('active');
