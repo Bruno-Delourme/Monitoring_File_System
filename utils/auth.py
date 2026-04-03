@@ -1,5 +1,6 @@
 """
-Authentification centralisée : liste d'utilisateurs autorisés + mot de passe partagé (haché).
+Authentification centralisée : liste d'utilisateurs autorisés, mot de passe partagé (haché),
+et mot de passe dédié pour certains comptes (ex. Tessa).
 Utilisé par le CLI (session locale) et l'interface web (session Flask).
 """
 import os
@@ -21,6 +22,10 @@ ALLOWED_USERNAMES = ["Laurent", "Tessa", "Tim", "Bruno", "Ntumba", "Killian"]
 SHARED_PASSWORD_PLAINTEXT = "motdepasse123!!"
 _LEGACY_PASSWORD_PLAINTEXT = "lemotdepasse123!!"
 
+# Compte avec mot de passe propre (ne pas utiliser le mot de passe partagé)
+TESSA_CANONICAL_NAME = "Tessa"
+TESSA_PASSWORD_PLAINTEXT = "PullALaMaison"
+
 AUTH_ERROR_MESSAGE = "Identifiant ou mot de passe incorrect."
 
 SESSION_TTL_SECONDS = 8 * 3600
@@ -37,6 +42,9 @@ def _ensure_users_db_file() -> dict:
         data = {
             "usernames": list(ALLOWED_USERNAMES),
             "password_hash": generate_password_hash(SHARED_PASSWORD_PLAINTEXT),
+            "passwords": {
+                TESSA_CANONICAL_NAME: generate_password_hash(TESSA_PASSWORD_PLAINTEXT),
+            },
         }
         with open(USERS_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -58,11 +66,29 @@ def _ensure_users_db_file() -> dict:
     if changed:
         data["usernames"] = merged
 
-    # Hash totalement absent : régénérer avec le mot de passe officiel
+    # Hash partagé absent : régénérer
     h = data.get("password_hash")
     if not h or not isinstance(h, str):
         data["password_hash"] = generate_password_hash(SHARED_PASSWORD_PLAINTEXT)
         changed = True
+
+    # Dictionnaire login -> hash (mots de passe individuels)
+    passwords = data.get("passwords")
+    if not isinstance(passwords, dict):
+        passwords = {}
+        data["passwords"] = passwords
+        changed = True
+
+    # Tessa : mot de passe dédié défini dans le code (mettre à jour le hash si besoin)
+    if TESSA_CANONICAL_NAME in merged:
+        th = passwords.get(TESSA_CANONICAL_NAME)
+        if not th or not isinstance(th, str) or not (
+            check_password_hash(th, TESSA_PASSWORD_PLAINTEXT)
+        ):
+            passwords[TESSA_CANONICAL_NAME] = generate_password_hash(
+                TESSA_PASSWORD_PLAINTEXT
+            )
+            changed = True
 
     if changed:
         with open(USERS_DB_FILE, "w", encoding="utf-8") as f:
@@ -109,6 +135,19 @@ def verify_user_password(username: str, password: str) -> bool:
     canon = _canonical_username(names, username)
     if not canon:
         return False
+    pwd = (password or "").strip()
+
+    passwords = data.get("passwords") or {}
+    if not isinstance(passwords, dict):
+        passwords = {}
+
+    # Tessa : uniquement le mot de passe dédié (pas le mot de passe partagé)
+    if canon == TESSA_CANONICAL_NAME:
+        th = passwords.get(TESSA_CANONICAL_NAME)
+        if th and isinstance(th, str) and check_password_hash(th, pwd):
+            return True
+        return False
+
     h = data.get("password_hash") or ""
     return _password_matches_hash(h, password)
 
