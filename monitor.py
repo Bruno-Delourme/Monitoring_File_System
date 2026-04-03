@@ -1101,11 +1101,27 @@ def interactive_menu():
                 port = int(port_raw)
             except ValueError:
                 port = 5000
+            interval_raw = input(
+                "Intervalle de scan surveillance en arrière-plan, secondes (Entrée = 1) : "
+            ).strip() or "1"
+            try:
+                scan_iv = int(interval_raw)
+            except ValueError:
+                scan_iv = 1
+            nm = input("Lancer uniquement le panel sans surveillance ? o/N : ").strip().lower()
+            no_monitor = nm in ("o", "oui", "y", "yes")
             log_and_print(
-                f"[WEB] Ouverture du panel — http://127.0.0.1:{port} (Ctrl+C pour arrêter)",
+                f"[WEB] Ouverture du panel — http://127.0.0.1:{port} (Ctrl+C pour arrêter)"
+                + ("" if no_monitor else " ; surveillance en arrière-plan activée"),
                 color=COLOR_CYAN,
             )
-            web_app.run_web(host=host, port=port, debug=False)
+            web_app.run_web(
+                host=host,
+                port=port,
+                debug=False,
+                start_surveillance=not no_monitor,
+                scan_interval=scan_iv,
+            )
 
         # 10) quitter
         elif choice == "10":
@@ -1189,6 +1205,18 @@ def build_parser():
     parser_web.add_argument("--host", default="0.0.0.0", help="Adresse d'écoute (défaut: 0.0.0.0)")
     parser_web.add_argument("--port", type=int, default=5000, help="Port (défaut: 5000)")
     parser_web.add_argument("--debug", action="store_true", help="Mode debug Flask (déconseillé en prod)")
+    parser_web.add_argument(
+        "--no-monitor",
+        action="store_true",
+        help="Panel web uniquement, sans lancer la surveillance en arrière-plan",
+    )
+    parser_web.add_argument(
+        "--scan-interval",
+        type=int,
+        default=1,
+        metavar="SEC",
+        help="Intervalle de scan (secondes) pour la surveillance lancée avec le panel (défaut: 1)",
+    )
 
     return parser
 
@@ -1248,7 +1276,13 @@ def main():
     elif args.command == "web":
         import web_app
 
-        web_app.run_web(host=args.host, port=args.port, debug=args.debug)
+        web_app.run_web(
+            host=args.host,
+            port=args.port,
+            debug=args.debug,
+            start_surveillance=not args.no_monitor,
+            scan_interval=args.scan_interval,
+        )
     elif args.command == "menu" or args.command is None:
         # Menu interactif par défaut si aucune commande n'est fournie
         interactive_menu()

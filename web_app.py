@@ -507,9 +507,38 @@ def set_discord_config():
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_web(host="0.0.0.0", port=5000, debug=False):
-    """Lance le serveur Flask (interface web authentifiée)."""
+def run_web(
+    host="0.0.0.0",
+    port=5000,
+    debug=False,
+    start_surveillance=True,
+    scan_interval=1,
+):
+    """Lance le serveur Flask (interface web authentifiée).
+
+    Par défaut, démarre aussi la surveillance des fichiers (``monitor.start_monitor``)
+    dans un thread daemon. Utilisez ``start_surveillance=False`` ou la CLI
+    ``--no-monitor`` pour n'ouvrir que le panel (ex. surveillance déjà lancée ailleurs).
+    """
     load_users_db()
+    if start_surveillance:
+        def _monitor_worker():
+            try:
+                import monitor
+
+                monitor.start_monitor(scan_interval=scan_interval)
+            except Exception:
+                app.logger.exception("Erreur dans le thread de surveillance")
+
+        threading.Thread(target=_monitor_worker, daemon=True, name="FSMMonitor").start()
+        print(
+            f"\n  Surveillance : thread démarré (intervalle {scan_interval}s). "
+            "Sans config valide, configurez via « setup » puis relancez."
+        )
+        print(
+            "  Pour le panel seul : relancez avec --no-monitor si une autre instance "
+            "« monitor » tourne déjà (évite les doublons d'alertes).\n"
+        )
     ensure_tail_thread_started()
     print("\n  File System Monitor — Interface Web")
     print(f"  ➜  http://localhost:{port}")
