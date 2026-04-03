@@ -989,6 +989,13 @@ def start_monitor(scan_interval=1):
     observer.join()
 
 
+def _require_cli_auth():
+    """Authentification terminal (utilisateurs autorisés dans users_db.json)."""
+    from utils.auth import ensure_cli_authenticated
+
+    ensure_cli_authenticated()
+
+
 def interactive_menu():
     """
     Menu interactif pour configurer et utiliser la surveillance.
@@ -1005,43 +1012,50 @@ def interactive_menu():
         print("6. Afficher la configuration actuelle")
         print("7. Modifier les permissions d'un fichier surveillé")
         print("8. Lancer la surveillance")
-        print("9. Lancer l'interface web (panel navigateur)")
+        print("9. Lancer l'interface web (panel navigateur) — connexion dans le navigateur uniquement")
         print("10. Quitter")
 
         choice = input("Choix : ").strip()
 
         # 1) Cibler un dossier
         if choice == "1":
+            _require_cli_auth()
             watch_dir = input("Dossier à surveiller : ").strip()
             setup_watch_all(watch_dir)
 
         # 2) Cibler un fichier (chemin complet)
         elif choice == "2":
+            _require_cli_auth()
             file_path = input("Chemin complet du fichier (ex: /home/user/test.txt) : ").strip()
             setup_watch_file(file_path)
 
         # 3) Ajouter fichier (mode fichiers ciblés)
         elif choice == "3":
+            _require_cli_auth()
             filename = input("Nom du fichier à ajouter (dans le dossier ciblé) : ").strip()
             if filename:
                 add_file(filename)
 
         # 4) Retirer fichier
         elif choice == "4":
+            _require_cli_auth()
             filename = input("Nom du fichier à retirer : ").strip()
             if filename:
                 remove_file(filename)
 
         # 5) Supprimer config
         elif choice == "5":
+            _require_cli_auth()
             remove_watch()
 
         # 6) Afficher config
         elif choice == "6":
+            _require_cli_auth()
             list_watch()
 
         # 7) chmod
         elif choice == "7":
+            _require_cli_auth()
             file_paths = get_monitored_file_paths()
             if not file_paths:
                 log_and_print(
@@ -1068,6 +1082,7 @@ def interactive_menu():
 
         # 8) monitor
         elif choice == "8":
+            _require_cli_auth()
             interval_raw = input("Intervalle de scan en secondes (défaut 1) : ").strip()
             try:
                 interval = int(interval_raw) if interval_raw else 1
@@ -1184,12 +1199,13 @@ def main():
     Parse les arguments de la ligne de commande et exécute la commande demandée.
     """
     parser = build_parser()
-    if "--help" not in sys.argv and "-h" not in sys.argv:
-        from utils.auth import ensure_cli_authenticated
-
-        ensure_cli_authenticated()
-
     args = parser.parse_args()
+
+    # Auth terminal : obligatoire pour toutes les sous-commandes sauf menu / lancement nu / web
+    # (l'interface web s'authentifie dans le navigateur).
+    if "--help" not in sys.argv and "-h" not in sys.argv:
+        if args.command not in (None, "menu", "web"):
+            _require_cli_auth()
 
     # Router vers la fonction appropriée selon la commande
     if args.command == "setup":
