@@ -9,6 +9,7 @@ import os
 import json
 import time
 import argparse
+import subprocess
 
 # Imports watchdog pour la surveillance du système de fichiers
 from watchdog.observers import Observer
@@ -30,6 +31,9 @@ CONFIG_FILE = "config.json"
 # Si True, aucune alerte n'est émise quand le contenu du fichier change
 # (mtime / sha256). Les changements de "droits" (mode/uid/gid) restent actifs.
 IGNORE_CONTENT_CHANGES = True
+
+# Intervalle (en secondes) entre deux vérifications d'accès (0 = désactivé)
+DEFAULT_PROBE_INTERVAL = 0
 
 
 _UID_TO_NAME = None
@@ -204,6 +208,98 @@ def _describe_state(meta):
     return f"exists={exists} | {mode_desc} | uid={uid} | gid={gid} | mtime={mtime}"
 
 
+def _sudo_run_as(user, args):
+    """
+    Exécute une commande en tant qu'un autre utilisateur via sudo.
+    Nécessite généralement d'exécuter l'outil avec un contexte sudoers adapté.
+
+    - `-n` : non-interactif (échoue si un mot de passe est requis)
+    """
+    return subprocess.run(
+        ["sudo", "-n", "-u", user, "--", *args],
+        capture_output=True,
+        text=True,
+    )
+
+
+def _probe_access(user, action, path):
+    """
+    Teste une tentative d'accès (read/write/exec) en tant que `user`.
+    Retourne (ok:bool, detail:str).
+
+    Note: write est non-destructif (open O_WRONLY|O_APPEND sans écrire).
+    """
+    if action == "read":
+        # Lire 1 octet (suffisant pour provoquer EACCES si interdit)
+        p = _sudo_run_as(user, ["python3", "-c", "import sys; open(sys.argv[1],'rb').read(1)", path])
+    elif action == "write":
+        # Ouverture en écriture (append) sans écrire.
+        p = _sudo_run_as(
+            user,
+            [
+                "python3",
+                "-c",
+                "import os,sys; fd=os.open(sys.argv[1], os.O_WRONLY|os.O_APPEND); os.close(fd)",
+                path,
+            ],
+        )
+    elif action == "exec":
+        # Tester le droit d'exécution (pas de lancement)
+        p = _sudo_run_as(user, ["test", "-x", path])
+    else:
+        return True, "action inconnue (ignorée)"
+
+    if p.returncode == 0:
+        return True, "OK"
+
+    stderr = (p.stderr or "").strip()
+    stdout = (p.stdout or "").strip()
+    msg = stderr or stdout or f"code={p.returncode}"
+
+    # sudo -n sans permission => pas un "refus sur fichier", mais un problème de sudo
+    if "a password is required" in msg.lower() or "password is required" in msg.lower():
+        return True, "probe impossible (sudo demande un mot de passe)"
+
+    # Tentative non autorisée sur fichier : permission denied, operation not permitted, etc.
+    low = msg.lower()
+    if "permission denied" in low or "operation not permitted" in low:
+        return False, msg
+
+    # Par défaut, on signale en warning (peut être fichier absent, python manquant, etc.)
+    return True, msg
+
+
+def check_unauthorized_access_attempts():
+    """
+    Lance des probes de tentative d'accès sur les fichiers surveillés.
+    Si une tentative est refusée (EACCES/EPERM), on émet une alerte.
+    """
+    config = load_config()
+    watch_dir = config.get("watch_directory")
+    if not watch_dir:
+        return
+
+    users = _ensure_list(config.get("probe_users"))
+    actions = _ensure_list(config.get("probe_actions"))
+    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
+    if not users or not actions or not filenames:
+        return
+
+    for name in filenames:
+        path = normalize_path(os.path.join(watch_dir, name))
+        if not os.path.exists(path):
+            continue
+        for user in users:
+            for action in actions:
+                ok, detail = _probe_access(user, action, path)
+                if ok is False:
+                    log_and_print(
+                        f"[CRITIQUE] Tentative d'accès non autorisée: user='{user}' action='{action}' ressource='{path}' ({detail})",
+                        level="error",
+                        color=COLOR_RED,
+                    )
+
+
 def load_config():
     """
     Charge la configuration depuis le fichier JSON.
@@ -239,40 +335,52 @@ def save_config(data):
         json.dump(data, f, indent=4)
 
 
-def get_monitored_file_path():
+def _ensure_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def get_monitored_file_paths():
     """
-    Construit et retourne le chemin complet du fichier surveillé.
+    Construit et retourne les chemins complets des fichiers surveillés.
     
     Returns:
-        str or None: Chemin absolu normalisé du fichier surveillé,
-                     ou None si la configuration n'est pas complète.
+        list[str]: Liste de chemins absolus normalisés. Liste vide si config incomplète.
     """
     config = load_config()
     watch_dir = config.get("watch_directory")
-    filename = config.get("filename")
+    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     
     # Vérifier que la configuration contient les informations nécessaires
-    if not watch_dir or not filename:
-        return None
+    if not watch_dir or not filenames:
+        return []
     
     # Normaliser le chemin du dossier et construire le chemin complet
     watch_dir = normalize_path(watch_dir)
-    file_path = os.path.join(watch_dir, filename)
-    return normalize_path(file_path)
+    paths = []
+    for name in filenames:
+        if not name:
+            continue
+        paths.append(normalize_path(os.path.join(watch_dir, name)))
+    return paths
 
 
-def setup_watch(watch_directory, filename):
+def setup_watch(watch_directory, filenames):
     """
-    Configure la surveillance d'un fichier dans un dossier spécifique.
-    Le fichier sera surveillé dès qu'il apparaît dans le dossier.
+    Configure la surveillance d'un ou plusieurs fichiers dans un dossier spécifique.
+    Les fichiers seront surveillés dès qu'ils apparaissent dans le dossier.
     
     Args:
         watch_directory (str): Chemin du dossier à surveiller.
-        filename (str): Nom du fichier à détecter et surveiller.
+        filenames (list[str] | str): Noms des fichiers à détecter et surveiller.
     """
     # Normaliser le chemin du dossier
     watch_directory = normalize_path(watch_directory)
     config = load_config()
+    filenames = [f for f in _ensure_list(filenames) if f]
 
     # Vérifier que le dossier existe
     if not os.path.isdir(watch_directory):
@@ -285,25 +393,72 @@ def setup_watch(watch_directory, filename):
 
     # Enregistrer la configuration de surveillance
     config["watch_directory"] = watch_directory
-    config["filename"] = filename
-    config["file_metadata"] = None  # Sera rempli quand le fichier sera détecté
+    config["filenames"] = filenames
+    # Dictionnaire des métadonnées par fichier (clé = filename)
+    config["file_metadata"] = {}  # rempli au fur et à mesure
+    # Configuration probes (tentatives d'accès)
+    config.setdefault("probe_interval", DEFAULT_PROBE_INTERVAL)
+    config.setdefault("probe_users", [])  # ex: ["www-data", "nobody"]
+    config.setdefault("probe_actions", ["read"])  # read, write, exec
     save_config(config)
 
-    file_path = os.path.join(watch_directory, filename)
     log_and_print(
-        f"[+] Surveillance configurée : dossier '{watch_directory}' pour le fichier '{filename}'",
+        f"[+] Surveillance configurée : dossier '{watch_directory}' pour {len(filenames)} fichier(s)",
         color=COLOR_GREEN
     )
+    for name in filenames:
+        log_and_print(f"    - {name}", color=COLOR_GREEN)
     
-    # Si le fichier existe déjà, capturer ses métadonnées immédiatement
-    if os.path.exists(file_path):
-        file_path = normalize_path(file_path)
-        config["file_metadata"] = get_file_metadata(file_path)
+    # Si les fichiers existent déjà, capturer leurs métadonnées immédiatement
+    changed = False
+    for name in filenames:
+        file_path = normalize_path(os.path.join(watch_directory, name))
+        if os.path.exists(file_path):
+            config["file_metadata"][name] = get_file_metadata(file_path)
+            changed = True
+            log_and_print(
+                f"[INFO] Le fichier existe déjà et est maintenant surveillé : {file_path}",
+                color=COLOR_CYAN
+            )
+    if changed:
         save_config(config)
-        log_and_print(
-            f"[INFO] Le fichier existe déjà et est maintenant surveillé : {file_path}",
-            color=COLOR_CYAN
-        )
+
+
+def add_file(filename):
+    """Ajoute un fichier à la liste surveillée (même dossier)."""
+    config = load_config()
+    watch_dir = config.get("watch_directory")
+    if not watch_dir:
+        log_and_print("[ERREUR] Aucune surveillance configurée.", level="error", color=COLOR_RED)
+        return
+    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
+    if filename in filenames:
+        log_and_print(f"[INFO] Déjà surveillé : {filename}", color=COLOR_YELLOW)
+        return
+    filenames.append(filename)
+    config["filenames"] = filenames
+    config.pop("filename", None)
+    config.setdefault("file_metadata", {})
+    save_config(config)
+    log_and_print(f"[+] Ajouté à la surveillance : {filename}", color=COLOR_GREEN)
+
+
+def remove_file(filename):
+    """Supprime un fichier de la liste surveillée (même dossier)."""
+    config = load_config()
+    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
+    if filename not in filenames:
+        log_and_print(f"[INFO] Non surveillé : {filename}", color=COLOR_YELLOW)
+        return
+    filenames = [f for f in filenames if f != filename]
+    config["filenames"] = filenames
+    config.pop("filename", None)
+    meta = config.get("file_metadata")
+    if isinstance(meta, dict):
+        meta.pop(filename, None)
+        config["file_metadata"] = meta
+    save_config(config)
+    log_and_print(f"[-] Retiré de la surveillance : {filename}", color=COLOR_GREEN)
 
 
 def remove_watch():
@@ -345,31 +500,32 @@ def list_watch():
 
     # Récupérer les informations de configuration
     watch_dir = config.get("watch_directory")
-    filename = config.get("filename")
-    file_path = os.path.join(watch_dir, filename)
-    file_path = normalize_path(file_path)
+    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     
     # Afficher la configuration
     print("\n=== Configuration de surveillance ===")
     print(f"Dossier surveillé : {watch_dir}")
-    print(f"Fichier recherché : {filename}")
-    print(f"Chemin complet : {file_path}")
+    print(f"Fichiers surveillés ({len(filenames)}) :")
+    for name in filenames:
+        print(f"  - {name}")
     
-    # Afficher le statut et les métadonnées si le fichier existe
-    if os.path.exists(file_path):
-        meta = config.get("file_metadata")
-        if meta:
-            # Fichier présent avec métadonnées enregistrées
-            print(f"Statut : présent et surveillé")
-            print(f"  - Permissions : {_describe_permissions(meta.get('mode'))}")
-            print(f"  - Propriétaire : {meta.get('uid', 'N/A')}:{meta.get('gid', 'N/A')}")
-            print(f"  - Dernière modification : {meta.get('mtime', 'N/A')}")
+    # Afficher le statut et les métadonnées pour chaque fichier
+    meta_map = config.get("file_metadata") if isinstance(config.get("file_metadata"), dict) else {}
+    for name in filenames:
+        file_path = normalize_path(os.path.join(watch_dir, name))
+        print(f"\n--- {name} ---")
+        print(f"Chemin complet : {file_path}")
+        if os.path.exists(file_path):
+            meta = meta_map.get(name)
+            if meta:
+                print("Statut : présent et surveillé")
+                print(f"  - Permissions : {_describe_permissions(meta.get('mode'))}")
+                print(f"  - Propriétaire : {meta.get('uid', 'N/A')}:{meta.get('gid', 'N/A')}")
+                print(f"  - Dernière modification : {meta.get('mtime', 'N/A')}")
+            else:
+                print("Statut : présent (métadonnées en cours de chargement)")
         else:
-            # Fichier présent mais métadonnées pas encore chargées
-            print("Statut : présent (métadonnées en cours de chargement)")
-    else:
-        # Fichier absent, en attente de son apparition
-        print("Statut : absent (en attente de l'apparition du fichier)")
+            print("Statut : absent (en attente de l'apparition du fichier)")
 
 
 def chmod_file(path, mode_str):
@@ -421,8 +577,8 @@ class MonitorHandler(FileSystemEventHandler):
     def __init__(self):
         """Initialise le handler et charge la configuration."""
         self.watch_directory = None  # Dossier surveillé
-        self.filename = None  # Nom du fichier recherché
-        self.monitored_file_path = None  # Chemin complet du fichier surveillé
+        self.filenames = []  # Noms des fichiers recherchés
+        self.monitored_file_paths = set()  # Chemins complets surveillés
         self._load_config()
 
     def _load_config(self):
@@ -432,15 +588,16 @@ class MonitorHandler(FileSystemEventHandler):
         """
         config = load_config()
         self.watch_directory = normalize_path(config.get("watch_directory", ""))
-        self.filename = config.get("filename", "")
+        self.filenames = _ensure_list(config.get("filenames") or config.get("filename"))
         
-        # Construire le chemin complet si la configuration est valide
-        if self.watch_directory and self.filename:
-            self.monitored_file_path = normalize_path(
-                os.path.join(self.watch_directory, self.filename)
-            )
-        else:
-            self.monitored_file_path = None
+        self.monitored_file_paths = set()
+        if self.watch_directory and self.filenames:
+            for name in self.filenames:
+                if not name:
+                    continue
+                self.monitored_file_paths.add(
+                    normalize_path(os.path.join(self.watch_directory, name))
+                )
 
     def _is_monitored_file(self, path):
         """
@@ -452,10 +609,15 @@ class MonitorHandler(FileSystemEventHandler):
         Returns:
             bool: True si le chemin correspond au fichier surveillé, False sinon.
         """
-        if not self.monitored_file_path:
+        if not self.monitored_file_paths:
             return False
-        # Comparer les chemins normalisés pour éviter les problèmes de format
-        return normalize_path(path) == self.monitored_file_path
+        return normalize_path(path) in self.monitored_file_paths
+
+    def _filename_from_path(self, path):
+        try:
+            return os.path.basename(normalize_path(path))
+        except OSError:
+            return os.path.basename(path)
 
     def compare_and_alert(self, path):
         """
@@ -470,7 +632,9 @@ class MonitorHandler(FileSystemEventHandler):
 
         # Charger la configuration et récupérer les métadonnées
         config = load_config()
-        old = config.get("file_metadata")  # Métadonnées précédentes
+        name = self._filename_from_path(path)
+        meta_map = config.get("file_metadata") if isinstance(config.get("file_metadata"), dict) else {}
+        old = meta_map.get(name)  # Métadonnées précédentes pour ce fichier
         new = get_file_metadata(path)  # Métadonnées actuelles
         changes = []  # Liste des changements détectés
 
@@ -550,7 +714,8 @@ class MonitorHandler(FileSystemEventHandler):
             log_and_print(f" - Nouvel état (brut) : {new}", level="warning")
 
             # Sauvegarder les nouvelles métadonnées
-            config["file_metadata"] = new
+            meta_map[name] = new
+            config["file_metadata"] = meta_map
             save_config(config)
 
     def on_modified(self, event):
@@ -611,7 +776,7 @@ def start_monitor(scan_interval=1):
         return
 
     watch_directory = normalize_path(config.get("watch_directory"))
-    filename = config.get("filename")
+    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
 
     # Vérifier que le dossier existe
     if not os.path.isdir(watch_directory):
@@ -633,7 +798,7 @@ def start_monitor(scan_interval=1):
         color=COLOR_CYAN
     )
     log_and_print(
-        f"[WATCH] Fichier recherché : {filename}",
+        f"[WATCH] Fichiers recherchés ({len(filenames)}) : {', '.join(filenames)}",
         color=COLOR_CYAN
     )
 
@@ -641,16 +806,23 @@ def start_monitor(scan_interval=1):
     observer.start()
     log_and_print("Surveillance en cours... Ctrl+C pour arrêter.", color=COLOR_GREEN)
 
+    probe_interval = int(config.get("probe_interval") or 0)
+    next_probe_at = time.time() + probe_interval if probe_interval > 0 else None
+
     try:
         # Boucle principale : scan périodique complémentaire
         while True:
             time.sleep(scan_interval)
 
-            # Vérification périodique du fichier (complémentaire à watchdog)
-            # Cela permet de détecter les changements même si watchdog rate un événement
-            monitored_file_path = get_monitored_file_path()
-            if monitored_file_path and os.path.exists(monitored_file_path):
-                handler.compare_and_alert(monitored_file_path)
+            # Vérification périodique des fichiers (complémentaire à watchdog)
+            for monitored_file_path in get_monitored_file_paths():
+                if monitored_file_path and os.path.exists(monitored_file_path):
+                    handler.compare_and_alert(monitored_file_path)
+
+            # Probes: tentatives d'accès non autorisées (optionnel)
+            if next_probe_at is not None and time.time() >= next_probe_at:
+                check_unauthorized_access_attempts()
+                next_probe_at = time.time() + probe_interval
 
     except KeyboardInterrupt:
         # Arrêt propre lors de Ctrl+C
@@ -670,6 +842,8 @@ def interactive_menu():
         # Afficher le menu principal
         print("\n=== FILE SYSTEM MONITOR ===")
         print("1. Configurer la surveillance (dossier + nom de fichier)")
+        print("1b. Ajouter un fichier à surveiller")
+        print("1c. Retirer un fichier surveillé")
         print("2. Supprimer la configuration de surveillance")
         print("3. Afficher la configuration actuelle")
         print("4. Modifier les permissions du fichier surveillé")
@@ -681,8 +855,19 @@ def interactive_menu():
         # Option 1: Configuration de la surveillance
         if choice == "1":
             watch_dir = input("Dossier à surveiller : ").strip()
-            filename = input("Nom du fichier à surveiller : ").strip()
-            setup_watch(watch_dir, filename)
+            filenames_raw = input("Nom(s) de fichier(s) à surveiller (séparés par des espaces) : ").strip()
+            filenames = [f for f in filenames_raw.split(" ") if f]
+            setup_watch(watch_dir, filenames)
+
+        elif choice.lower() == "1b":
+            filename = input("Nom du fichier à ajouter : ").strip()
+            if filename:
+                add_file(filename)
+
+        elif choice.lower() == "1c":
+            filename = input("Nom du fichier à retirer : ").strip()
+            if filename:
+                remove_file(filename)
 
         # Option 2: Suppression de la configuration
         elif choice == "2":
@@ -694,16 +879,29 @@ def interactive_menu():
 
         # Option 4: Modification des permissions
         elif choice == "4":
-            file_path = get_monitored_file_path()
-            if not file_path:
+            file_paths = get_monitored_file_paths()
+            if not file_paths:
                 log_and_print(
                     "[ERREUR] Aucune surveillance configurée.",
                     level="error",
                     color=COLOR_RED
                 )
             else:
+                config = load_config()
+                filenames = _ensure_list(config.get("filenames") or config.get("filename"))
+                print("Fichiers surveillés :")
+                for i, n in enumerate(filenames, start=1):
+                    print(f"  {i}. {n}")
+                idx_raw = input("Choisir un fichier (numéro, défaut 1) : ").strip()
+                try:
+                    idx = int(idx_raw) if idx_raw else 1
+                except ValueError:
+                    idx = 1
+                idx = max(1, min(idx, len(filenames)))
+                selected = filenames[idx - 1]
+                selected_path = normalize_path(os.path.join(config.get("watch_directory"), selected))
                 mode = input("Nouvelles permissions (ex: 644, 600, 755) : ").strip()
-                chmod_file(file_path, mode)
+                chmod_file(selected_path, mode)
 
         # Option 5: Lancement de la surveillance
         elif choice == "5":
@@ -745,7 +943,13 @@ def build_parser():
         help="Configurer la surveillance (dossier + nom de fichier)"
     )
     parser_setup.add_argument("directory", help="Dossier à surveiller")
-    parser_setup.add_argument("filename", help="Nom du fichier à surveiller")
+    parser_setup.add_argument("filenames", nargs="+", help="Nom(s) de fichier(s) à surveiller")
+
+    parser_add = subparsers.add_parser("add", help="Ajouter un fichier à surveiller")
+    parser_add.add_argument("filename", help="Nom du fichier à ajouter")
+
+    parser_rm = subparsers.add_parser("rm", help="Retirer un fichier surveillé")
+    parser_rm.add_argument("filename", help="Nom du fichier à retirer")
 
     # Commande remove: supprimer la configuration
     subparsers.add_parser("remove", help="Supprimer la configuration de surveillance")
@@ -759,6 +963,7 @@ def build_parser():
         help="Modifier les permissions du fichier surveillé"
     )
     parser_chmod.add_argument("mode", help="Mode octal, ex: 644, 600, 755")
+    parser_chmod.add_argument("--file", dest="filename", default=None, help="Nom du fichier (par défaut: le 1er)")
 
     # Commande monitor: lancer la surveillance
     parser_monitor = subparsers.add_parser("monitor", help="Lancer la surveillance")
@@ -767,6 +972,13 @@ def build_parser():
         type=int,
         default=1,
         help="Intervalle de scan complémentaire en secondes (défaut: 1)"
+    )
+    parser_monitor.add_argument(
+        "--probe-interval",
+        type=int,
+        default=None,
+        help="Intervalle (s) pour tester des tentatives d'accès via sudo -u (0 = désactivé). "
+             "Si omis, utilise la valeur de config.",
     )
 
     # Commande menu: lancer le menu interactif
@@ -785,22 +997,34 @@ def main():
 
     # Router vers la fonction appropriée selon la commande
     if args.command == "setup":
-        setup_watch(args.directory, args.filename)
+        setup_watch(args.directory, args.filenames)
+    elif args.command == "add":
+        add_file(args.filename)
+    elif args.command == "rm":
+        remove_file(args.filename)
     elif args.command == "remove":
         remove_watch()
     elif args.command == "list":
         list_watch()
     elif args.command == "chmod":
-        file_path = get_monitored_file_path()
-        if not file_path:
+        config = load_config()
+        watch_dir = config.get("watch_directory")
+        filenames = _ensure_list(config.get("filenames") or config.get("filename"))
+        if not watch_dir or not filenames:
             log_and_print(
                 "[ERREUR] Aucune surveillance configurée.",
                 level="error",
                 color=COLOR_RED
             )
         else:
-            chmod_file(file_path, args.mode)
+            target = args.filename if args.filename else filenames[0]
+            chmod_file(normalize_path(os.path.join(watch_dir, target)), args.mode)
     elif args.command == "monitor":
+        # Optionnel: override du probe_interval pour cette exécution
+        if args.probe_interval is not None:
+            config = load_config()
+            config["probe_interval"] = int(args.probe_interval)
+            save_config(config)
         start_monitor(scan_interval=args.interval)
     elif args.command == "menu" or args.command is None:
         # Menu interactif par défaut si aucune commande n'est fournie
