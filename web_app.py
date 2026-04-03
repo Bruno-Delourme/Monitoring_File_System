@@ -398,7 +398,7 @@ def login():
     error = None
     if flask_request.method == "POST":
         name = flask_request.form.get("username", "").strip()
-        password = flask_request.form.get("password", "")
+        password = (flask_request.form.get("password") or "").strip()
         if verify_user_password(name, password):
             session["authenticated"] = True
             session["username"] = canonical_username_for_session(name) or name.strip()
