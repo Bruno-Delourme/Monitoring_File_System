@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel — File System Monitor</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; min-height: 100vh; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #1e293b; border-bottom: 1px solid #334155; }
+    h1 { font-size: 1.1rem; margin: 0; }
+    a.logout { color: #94a3b8; text-decoration: none; font-size: .875rem; }
+    a.logout:hover { color: #f8fafc; }
+    main { padding: 1rem 1.5rem; max-width: 960px; margin: 0 auto; }
+    #log { font-family: ui-monospace, monospace; font-size: .8rem; background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; max-height: 70vh; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+    .meta { font-size: .75rem; color: #64748b; margin-bottom: .75rem; }
+    .alert { color: #fca5a5; }
+    .warn { color: #fcd34d; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Surveillance — logs en direct</h1>
+    <a class="logout" href="{{ url_for('logout') }}">Déconnexion</a>
+  </header>
+  <main>
+    <p class="meta" id="status">Connexion au flux…</p>
+    <div id="log"></div>
+  </main>
+  <script>
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    function appendLine(text, cls) {
+      const span = document.createElement('div');
+      if (cls) span.className = cls;
+      span.textContent = text;
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    fetch('/api/logs', { credentials: 'same-origin' })
+      .then(r => { if (r.status === 401) { window.location = '/login'; return []; } return r.json(); })
+      .then(data => {
+        if (!Array.isArray(data)) return;
+        data.forEach(entry => {
+          const msg = entry.message || entry.raw || JSON.stringify(entry);
+          let cls = '';
+          if ((entry.level || '').includes('ERROR')) cls = 'alert';
+          else if ((entry.level || '').includes('WARNING')) cls = 'warn';
+          appendLine((entry.timestamp ? '[' + entry.timestamp + '] ' : '') + msg, cls);
+          (entry.details || []).forEach(d => appendLine('  ' + d, cls));
+        });
+      })
+      .catch(() => {});
+    const es = new EventSource('/api/stream');
+    es.onopen = () => { statusEl.textContent = 'Flux temps réel actif'; };
+    es.onmessage = (ev) => {
+      try {
+        const entry = JSON.parse(ev.data);
+        const msg = entry.message || entry.raw || '';
+        let cls = '';
+        if ((entry.level || '').includes('ERROR')) cls = 'alert';
+        else if ((entry.level || '').includes('WARNING')) cls = 'warn';
+        appendLine((entry.timestamp ? '[' + entry.timestamp + '] ' : '') + msg, cls);
+        (entry.details || []).forEach(d => appendLine('  ' + d, cls));
+      } catch (e) { appendLine(ev.data); }
+    };
+    es.onerror = () => { statusEl.textContent = 'Flux interrompu (reconnexion…)'; };
+  </script>
+</body>
+</html>

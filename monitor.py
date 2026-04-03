@@ -1148,6 +1148,15 @@ def build_parser():
     # Commande menu: lancer le menu interactif
     subparsers.add_parser("menu", help="Lancer le menu interactif")
 
+    # Interface web (Flask)
+    parser_web = subparsers.add_parser(
+        "web",
+        help="Lancer l'interface web (logs en temps réel, authentification requise)",
+    )
+    parser_web.add_argument("--host", default="0.0.0.0", help="Adresse d'écoute (défaut: 0.0.0.0)")
+    parser_web.add_argument("--port", type=int, default=5000, help="Port (défaut: 5000)")
+    parser_web.add_argument("--debug", action="store_true", help="Mode debug Flask (déconseillé en prod)")
+
     return parser
 
 
@@ -1197,6 +1206,10 @@ def main():
             config["probe_interval"] = int(args.probe_interval)
             save_config(config)
         start_monitor(scan_interval=args.interval)
+    elif args.command == "web":
+        import web_app
+
+        web_app.run_web(host=args.host, port=args.port, debug=args.debug)
     elif args.command == "menu" or args.command is None:
         # Menu interactif par défaut si aucune commande n'est fournie
         interactive_menu()
