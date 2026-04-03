@@ -27,7 +27,12 @@ from flask import (
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _WEB_SECRET_FILE = os.path.join(_BASE_DIR, ".web_secret_key")
 
-from utils.auth import AUTH_ERROR_MESSAGE, load_users_db, verify_user_password
+from utils.auth import (
+    AUTH_ERROR_MESSAGE,
+    canonical_username_for_session,
+    load_users_db,
+    verify_user_password,
+)
 
 
 def _get_secret_key() -> str:
@@ -396,7 +401,7 @@ def login():
         password = flask_request.form.get("password", "")
         if verify_user_password(name, password):
             session["authenticated"] = True
-            session["username"] = name
+            session["username"] = canonical_username_for_session(name) or name.strip()
             session.permanent = True
             nxt = flask_request.args.get("next") or flask_request.form.get("next")
             if nxt and nxt.startswith("/"):

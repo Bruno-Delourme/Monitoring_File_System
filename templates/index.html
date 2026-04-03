@@ -1,70 +1,869 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Panel — File System Monitor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Surveillance Fichiers — Logs</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; min-height: 100vh; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #1e293b; border-bottom: 1px solid #334155; }
-    h1 { font-size: 1.1rem; margin: 0; }
-    a.logout { color: #94a3b8; text-decoration: none; font-size: .875rem; }
-    a.logout:hover { color: #f8fafc; }
-    main { padding: 1rem 1.5rem; max-width: 960px; margin: 0 auto; }
-    #log { font-family: ui-monospace, monospace; font-size: .8rem; background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; max-height: 70vh; overflow: auto; white-space: pre-wrap; word-break: break-word; }
-    .meta { font-size: .75rem; color: #64748b; margin-bottom: .75rem; }
-    .alert { color: #fca5a5; }
-    .warn { color: #fcd34d; }
+    /* ── Variables ──────────────────────────────────────────── */
+    :root {
+      --bg:       #0c0c0c;
+      --surface:  #161616;
+      --surface2: #202020;
+      --border:   #2e2e2e;
+      --text:     #f1f5f9;
+      --muted:    #6b7280;
+      --red:      #dc2626;
+      --red-soft: #ef4444;
+      --orange:   #d97706;
+      --green:    #16a34a;
+      --green-s:  #22c55e;
+      --purple:   #7c3aed;
+      --yellow:   #ca8a04;
+      --radius:   7px;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 26px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-badge {
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .header-title { font-size: 16px; font-weight: 700; flex: 1; }
+    .header-title em { color: var(--muted); font-style: normal; font-weight: 400; font-size: 13px; margin-left: 8px; }
+
+    /* ── Status pill ─────────────────────────────────────────── */
+    #status-pill {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600; letter-spacing: .3px;
+      background: var(--surface2); border: 1px solid var(--border); transition: all .3s;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background .3s; }
+    #status-pill.connected   { border-color: var(--green-s); color: var(--green-s); }
+    #status-pill.connected .dot { background: var(--green-s); animation: pulse 1.8s infinite; }
+    #status-pill.disconnected { border-color: var(--red); color: var(--red); }
+    #status-pill.disconnected .dot { background: var(--red); }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+    /* ── Header buttons ──────────────────────────────────────── */
+    .header-btn {
+      padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted);
+      font-size: 12px; cursor: pointer; transition: all .15s;
+    }
+    .header-btn:hover { border-color: var(--red); color: var(--text); }
+
+    /* ── Main ────────────────────────────────────────────────── */
+    main { flex: 1; padding: 22px 26px; display: flex; flex-direction: column; gap: 18px; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+    /* ── Stats ───────────────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 18px;
+      display: flex; flex-direction: column; gap: 3px; transition: border-color .2s;
+    }
+    .stat-card:hover { border-color: #444; }
+    .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+    .stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .stat-card.total .stat-value { color: var(--text); }
+    .stat-card.info  .stat-value { color: var(--purple); }
+    .stat-card.warn  .stat-value { color: var(--orange); }
+    .stat-card.error .stat-value { color: var(--red); }
+
+    /* ── Toolbar ─────────────────────────────────────────────── */
+    .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-group { display: flex; gap: 5px; }
+    .btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--muted);
+      font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: .4px; transition: all .15s;
+    }
+    .btn:hover { border-color: #555; color: var(--text); }
+    .btn.active       { background: var(--red);    border-color: var(--red);    color: #fff; }
+    .btn.active.warn  { background: var(--orange);  border-color: var(--orange); color: #fff; }
+    .btn.active.info  { background: var(--purple);  border-color: var(--purple); color: #fff; }
+    .btn.active.ok    { background: var(--green);   border-color: var(--green);  color: #fff; }
+    .btn-icon { padding: 6px 10px; font-size: 13px; }
+    .search-wrap { flex: 1; min-width: 160px; }
+    .search-input {
+      width: 100%; padding: 6px 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s;
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-input:focus { border-color: #555; }
+
+    /* ── Log panel ───────────────────────────────────────────── */
+    .log-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; flex: 1; display: flex; flex-direction: column;
+    }
+    .log-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px; border-bottom: 1px solid var(--border);
+      font-size: 11.5px; color: var(--muted);
+    }
+    #log-count { font-weight: 700; color: var(--text); }
+    #log-list { flex: 1; overflow-y: auto; max-height: calc(100vh - 330px); min-height: 300px; }
+
+    /* ── Log entry ───────────────────────────────────────────── */
+    .log-entry {
+      display: grid;
+      grid-template-columns: 190px 78px 1fr auto;
+      border-bottom: 1px solid #191919;
+      font-size: 12px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      animation: fadeIn .2s ease;
+      cursor: default; transition: background .1s;
+    }
+    .log-entry:hover { background: var(--surface2); }
+    .log-entry.has-details { cursor: pointer; }
+    .log-entry.has-details:hover { background: #1a1010; }
+    .log-entry.new              { animation: flashIn   .5s ease; }
+    .log-entry.new.level-WARNING { animation: flashWarn .5s ease; }
+    .log-entry.new.level-ERROR   { animation: flashErr  .5s ease; }
+    @keyframes fadeIn   { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
+    @keyframes flashIn  { 0% { background:#0d1f0d; } 100% { background:transparent; } }
+    @keyframes flashWarn{ 0% { background:#1f150a; } 100% { background:transparent; } }
+    @keyframes flashErr { 0% { background:#1f0a0a; } 100% { background:transparent; } }
+
+    .log-cell {
+      padding: 6px 11px; border-right: 1px solid #191919;
+      display: flex; align-items: center;
+    }
+    .log-cell:last-child { border-right: none; }
+    .log-ts  { color: var(--muted); font-size: 11px; }
+    .log-lvl { font-weight: 700; font-size: 10.5px; letter-spacing: .5px; justify-content: center; }
+    .log-msg { color: var(--text); word-break: break-all; }
+    .log-expand { color: var(--muted); font-size: 10.5px; padding: 6px 10px; white-space: nowrap; gap: 4px; }
+    .log-entry.has-details .log-expand { color: var(--red-soft); }
+
+    .level-INFO    .log-lvl { color: var(--purple); }
+    .level-WARNING .log-lvl { color: var(--orange); }
+    .level-ERROR   .log-lvl { color: var(--red); }
+
+    .kw-alerte { color: var(--red);      font-weight: 700; }
+    .kw-detect { color: var(--green-s);  font-weight: 700; }
+    .kw-ok     { color: var(--green-s); }
+    .kw-admin  { color: #60a5fa; }
+    .kw-err    { color: var(--red); }
+    .kw-watch  { color: #60a5fa; }
+    .kw-hash   { color: var(--yellow); font-size: 10.5px; }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    #empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px; padding: 60px 20px; color: var(--muted);
+    }
+    #empty-state .icon { font-size: 36px; opacity: .3; }
+    #empty-state p { font-size: 14px; }
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+      z-index: 600; align-items: center; justify-content: center;
+    }
+    .overlay.open { display: flex; }
+
+    /* Alert modal */
+    #modal {
+      background: var(--surface); border: 1px solid #3f1515;
+      border-top: 3px solid var(--red);
+      border-radius: 10px; width: min(560px, 93vw); max-height: 82vh;
+      overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,.85);
+      animation: modalIn .18s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(6px); } to { opacity:1; transform:none; } }
+
+    .modal-header {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      background: #0f0808;
+    }
+    .modal-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
+    .modal-title-wrap { flex: 1; min-width: 0; }
+    .modal-title {
+      font-family: 'Cascadia Code', monospace; font-size: 12px; font-weight: 600;
+      color: var(--red-soft); line-height: 1.5; word-break: break-all;
+    }
+    .modal-ts { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .modal-close { color: var(--muted); font-size: 17px; cursor: pointer; flex-shrink: 0; line-height: 1; }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+    .modal-detail {
+      font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 11.5px; line-height: 1.8;
+      padding: 10px 13px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; word-break: break-all;
+    }
+    .modal-detail.perm  { border-left: 3px solid var(--orange); }
+    .modal-detail.state { border-left: 3px solid #2a2a3a; }
+
+    .d-label { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 6px; }
+    .d-old   { color: var(--orange); font-weight: 600; }
+    .d-new   { color: var(--green-s); font-weight: 600; }
+    .d-arrow { color: var(--muted); margin: 0 8px; }
+    .d-perm-block { display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
+    .d-perm-row   { display: flex; gap: 8px; }
+    .d-perm-actor { color: var(--muted); width: 90px; flex-shrink: 0; }
+    .d-key { color: var(--purple); }
+    .d-val { color: var(--yellow); }
+    .d-str { color: var(--green-s); }
+    .d-special { color: var(--red-soft); font-style: italic; margin-top: 4px; font-size: 10.5px; }
+
+    /* ── Discord settings modal ──────────────────────────────── */
+    #discord-modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; width: min(460px, 93vw);
+      overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,.8);
+      animation: modalIn .18s ease;
+    }
+    .discord-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .discord-header h3 { flex: 1; font-size: 14px; font-weight: 700; }
+    .discord-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+    .form-input {
+      padding: 8px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 12.5px; outline: none; transition: border-color .15s;
+    }
+    .form-input:focus { border-color: #555; }
+    .form-hint { font-size: 10.5px; color: var(--muted); }
+    .discord-footer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+    .btn-save {
+      flex: 1; padding: 8px; background: var(--green); border: none;
+      border-radius: 6px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-save:hover { background: #15803d; }
+    .btn-test {
+      padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer;
+    }
+    .btn-test:hover { border-color: #555; }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    #toast-container { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+    .toast {
+      display: flex; align-items: flex-start; gap: 10px;
+      min-width: 290px; max-width: 400px;
+      padding: 12px 14px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      animation: slideIn .25s ease; cursor: pointer;
+    }
+    .toast:hover { border-color: #555; }
+    @keyframes slideIn  { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:none; } }
+    @keyframes slideOut { to   { opacity:0; transform:translateX(16px); } }
+    .toast-icon  { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .toast-body  { flex: 1; min-width: 0; }
+    .toast-title { font-size: 11.5px; font-weight: 700; margin-bottom: 2px; }
+    .toast-msg   { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toast.warn  { border-left: 3px solid var(--orange); }
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.info  { border-left: 3px solid var(--purple); }
+    .toast-close { color: var(--muted); font-size: 15px; flex-shrink: 0; cursor: pointer; line-height: 1; }
+    .toast-close:hover { color: var(--text); }
+
+    /* ── Scroll button ───────────────────────────────────────── */
+    #scroll-btn {
+      display: none; position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+      padding: 7px 18px; background: var(--red); color: #fff;
+      border-radius: 20px; font-size: 11.5px; font-weight: 700; border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(220,38,38,.4); z-index: 50;
+    }
+
+    @media (max-width: 700px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .log-entry  { grid-template-columns: 1fr; }
+      .log-cell   { border-right: none; padding: 4px 11px; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Surveillance — logs en direct</h1>
-    <a class="logout" href="{{ url_for('logout') }}">Déconnexion</a>
-  </header>
-  <main>
-    <p class="meta" id="status">Connexion au flux…</p>
-    <div id="log"></div>
-  </main>
-  <script>
-    const logEl = document.getElementById('log');
-    const statusEl = document.getElementById('status');
-    function appendLine(text, cls) {
-      const span = document.createElement('div');
-      if (cls) span.className = cls;
-      span.textContent = text;
-      logEl.appendChild(span);
-      logEl.scrollTop = logEl.scrollHeight;
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<header>
+  <div class="header-badge">SÉCURITÉ</div>
+  <div class="header-title">
+    Surveillance Fichiers
+    <em>monitor.log</em>
+  </div>
+  <button class="header-btn" onclick="openDiscordModal()" title="Configurer Discord">⚙ Discord</button>
+  <a class="header-btn" href="/logout" title="Se déconnecter" style="text-decoration:none;">Déconnexion</a>
+  <div id="status-pill">
+    <div class="dot"></div>
+    <span id="status-text">Connexion...</span>
+  </div>
+</header>
+
+<!-- ── Main ───────────────────────────────────────────────── -->
+<main>
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card total"><div class="stat-label">Total événements</div><div class="stat-value" id="stat-total">0</div></div>
+    <div class="stat-card info" ><div class="stat-label">Informations</div>   <div class="stat-value" id="stat-info">0</div></div>
+    <div class="stat-card warn" ><div class="stat-label">Avertissements</div> <div class="stat-value" id="stat-warn">0</div></div>
+    <div class="stat-card error"><div class="stat-label">Erreurs</div>        <div class="stat-value" id="stat-error">0</div></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="filter-group">
+      <button class="btn active" id="btn-all"     onclick="setFilter('ALL')">Tous</button>
+      <button class="btn info"   id="btn-info"    onclick="setFilter('INFO')">Info</button>
+      <button class="btn warn"   id="btn-warning" onclick="setFilter('WARNING')">Avertissement</button>
+      <button class="btn error"  id="btn-error"   onclick="setFilter('ERROR')">Erreur</button>
+    </div>
+    <div class="search-wrap">
+      <input class="search-input" id="search" type="text" placeholder="Rechercher dans les logs..." oninput="applyFilters()" />
+    </div>
+    <button class="btn btn-icon" id="autoscroll-btn" onclick="toggleAutoScroll()" title="Défilement auto">⬇ Auto</button>
+    <button class="btn btn-icon" onclick="clearDisplay()" title="Vider l'affichage">🗑</button>
+  </div>
+
+  <!-- Log panel -->
+  <div class="log-panel">
+    <div class="log-panel-header">
+      <span><span id="log-count">0</span> entrées affichées</span>
+      <span id="last-update">—</span>
+    </div>
+    <div id="log-list">
+      <div id="empty-state">
+        <div class="icon">📋</div>
+        <p>Aucun événement pour le moment. En attente...</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── Modal alerte ────────────────────────────────────────── -->
+<div id="alert-overlay" class="overlay" onclick="handleAlertOverlay(event)">
+  <div id="modal">
+    <div class="modal-header">
+      <div class="modal-icon">🚨</div>
+      <div class="modal-title-wrap">
+        <div class="modal-title" id="modal-title"></div>
+        <div class="modal-ts"   id="modal-ts"></div>
+      </div>
+      <div class="modal-close" onclick="closeAlertModal()">✕</div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ── Modal Discord ───────────────────────────────────────── -->
+<div id="discord-overlay" class="overlay" onclick="handleDiscordOverlay(event)">
+  <div id="discord-modal">
+    <div class="discord-header">
+      <span style="font-size:18px">🔔</span>
+      <h3>Notifications Discord</h3>
+      <div class="modal-close" onclick="closeDiscordModal()">✕</div>
+    </div>
+    <div class="discord-body">
+      <div class="form-group">
+        <label class="form-label">URL du Webhook Discord</label>
+        <input class="form-input" id="discord-webhook" type="text" placeholder="https://discord.com/api/webhooks/..." />
+        <span class="form-hint">Créez un webhook dans les paramètres de votre salon Discord → Intégrations</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL du panel (lien dans le message Discord)</label>
+        <input class="form-input" id="discord-panel-url" type="text" placeholder="http://192.168.1.68:5000" />
+        <span class="form-hint">L'URL que vos collègues utiliseront pour accéder au panel</span>
+      </div>
+    </div>
+    <div class="discord-footer">
+      <button class="btn-test" onclick="testDiscord()">🧪 Tester</button>
+      <button class="btn-save" onclick="saveDiscordConfig()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ────────────────────────────────────── -->
+<div id="toast-container"></div>
+<button id="scroll-btn" onclick="scrollToBottom()">↓ Nouveaux logs</button>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   Permissions → français lisible
+   ───────────────────────────────────────────────────────────── */
+function parseOctalDigit(n) {
+  n = parseInt(n);
+  const parts = [];
+  if (n & 4) parts.push('Lecture');
+  if (n & 2) parts.push('Écriture');
+  if (n & 1) parts.push('Exécution');
+  return parts.length ? parts.join(' + ') : 'Aucun accès';
+}
+
+function describeOctalMode(octalStr) {
+  const p = formatOctalMode(octalStr);
+  if (typeof p === 'string') return String(octalStr);
+  return `${p.raw} (propriétaire : ${p.owner}; groupe : ${p.group}; autres : ${p.others})`;
+}
+
+function formatOctalMode(octalStr) {
+  const s = String(octalStr).replace(/^0[oO]/, '');
+  if (!s || s.length < 3) return octalStr;
+
+  let specials = [];
+  let perm = s;
+
+  if (s.length === 4) {
+    const sp = parseInt(s[0]);
+    perm = s.slice(1);
+    if (sp & 4) specials.push('SetUID — le fichier s\'exécute avec les droits du propriétaire');
+    if (sp & 2) specials.push('SetGID — le fichier s\'exécute avec les droits du groupe');
+    if (sp & 1) specials.push('Sticky bit — seul le propriétaire peut supprimer ce fichier');
+  }
+
+  return {
+    owner:   parseOctalDigit(perm[0]),
+    group:   parseOctalDigit(perm[1]),
+    others:  parseOctalDigit(perm[2]),
+    specials,
+    raw: octalStr,
+  };
+}
+
+function renderPermBlock(octalStr) {
+  const p = formatOctalMode(octalStr);
+  if (typeof p === 'string') return escHtml(octalStr);
+
+  let html = `<div class="d-perm-block">`;
+  html += `<div class="d-perm-row"><span class="d-perm-actor">Propriétaire :</span><span>${escHtml(p.owner)}</span></div>`;
+  html += `<div class="d-perm-row"><span class="d-perm-actor">Groupe :</span>      <span>${escHtml(p.group)}</span></div>`;
+  html += `<div class="d-perm-row"><span class="d-perm-actor">Autres :</span>      <span>${escHtml(p.others)}</span></div>`;
+  for (const s of p.specials) {
+    html += `<div class="d-special">⚠ ${escHtml(s)}</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function formatUid(uid) {
+  return String(uid) === '0' ? `0 (root)` : String(uid);
+}
+
+function translateStateValue(key, value) {
+  if (key === 'mode') return escHtml(describeOctalMode(value));
+  return /^0[oO]\d+$/.test(String(value)) ? escHtml(describeOctalMode(value)) : escHtml(value);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Helpers
+   ───────────────────────────────────────────────────────────── */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlight(msg) {
+  msg = escHtml(msg);
+  const rules = [
+    [/(\[ALERTE\])/g,    '<span class="kw-alerte">$1</span>'],
+    [/(\[DÉTECTION\])/g, '<span class="kw-detect">$1</span>'],
+    [/(\[DETECTION\])/g, '<span class="kw-detect">$1</span>'],
+    [/(\[ERREUR\])/g,    '<span class="kw-err">$1</span>'],
+    [/(\[ADMIN\])/g,     '<span class="kw-admin">$1</span>'],
+    [/(\[WATCH\])/g,     '<span class="kw-watch">$1</span>'],
+    [/(\[INFO\])/g,      '<span class="kw-admin">$1</span>'],
+    [/(\[\+\])/g,        '<span class="kw-ok">$1</span>'],
+    [/(\[-\])/g,         '<span class="kw-err">$1</span>'],
+    [/([a-f0-9]{64})/gi, '<span class="kw-hash">$1</span>'],
+  ];
+  for (const [re, rep] of rules) msg = msg.replace(re, rep);
+  return msg;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Modal alerte — rendu des détails en français
+   ───────────────────────────────────────────────────────────── */
+function renderDetail(detail) {
+  const div = document.createElement('div');
+  detail = String(detail).replace(/^\s*-\s*/, '').trim();
+
+  // "Permissions modifiées : 0oXXX -> 0oYYY"
+  const permMatch = detail.match(/^Permissions modifi[ée]es\s*:\s*(0[oO]\d+)\s*->\s*(0[oO]\d+)$/i);
+  if (permMatch) {
+    div.className = 'modal-detail perm';
+    div.innerHTML = `<span class="d-label">Modification des permissions</span>`
+      + `<div style="display:flex;gap:24px;flex-wrap:wrap;">`
+      + `<div><div style="color:var(--muted);font-size:10px;margin-bottom:4px;">AVANT <span class="d-old">(${escHtml(permMatch[1])})</span></div>${renderPermBlock(permMatch[1])}</div>`
+      + `<div><div style="color:var(--muted);font-size:10px;margin-bottom:4px;">APRÈS <span class="d-new">(${escHtml(permMatch[2])})</span></div>${renderPermBlock(permMatch[2])}</div>`
+      + `</div>`;
+    return div;
+  }
+
+  // "Propriétaire/groupe modifiés : uid:gid -> uid:gid"
+  const uidMatch = detail.match(/^Propri[ée]taire\/groupe modifi[ée]s\s*:\s*(\S+)\s*->\s*(\S+)$/i);
+  if (uidMatch) {
+    div.className = 'modal-detail perm';
+    const [oldU, oldG] = uidMatch[1].split(':');
+    const [newU, newG] = uidMatch[2].split(':');
+    div.innerHTML = `<span class="d-label">Changement de propriétaire</span>`
+      + `<div>Propriétaire (UID) : <span class="d-old">${escHtml(formatUid(oldU))}</span> <span class="d-arrow">→</span> <span class="d-new">${escHtml(formatUid(newU))}</span></div>`
+      + `<div>Groupe (GID) : <span class="d-old">${escHtml(formatUid(oldG))}</span> <span class="d-arrow">→</span> <span class="d-new">${escHtml(formatUid(newG))}</span></div>`;
+    return div;
+  }
+
+  // "Ancien état : {…}" ou "Nouvel état : {…}"
+  const isAncien = /^ancien/i.test(detail);
+  const isNouvel = /^nouvel/i.test(detail);
+  if (isAncien || isNouvel) {
+    div.className = 'modal-detail state';
+    const colonIdx = detail.indexOf(' : ');
+    const label    = colonIdx !== -1 ? detail.substring(0, colonIdx) : detail;
+    const value    = colonIdx !== -1 ? detail.substring(colonIdx + 3) : '';
+    const colorized = escHtml(value).replace(
+      /'([^']+)':\s*('([^']*)'|([^,}]+))/g,
+      (_, key, rawVal, strVal) =>
+        strVal !== undefined
+          ? `<span class="d-key">'${key}'</span>: <span class="d-str">'${translateStateValue(key, strVal)}'</span>`
+          : `<span class="d-key">'${key}'</span>: <span class="d-val">${translateStateValue(key, rawVal)}</span>`
+    );
+    div.innerHTML = `<span class="d-label">${escHtml(label)}</span>${colorized}`;
+    return div;
+  }
+
+  // Ligne générique avec " -> "
+  if (detail.includes(' -> ')) {
+    div.className = 'modal-detail perm';
+    const colonIdx = detail.indexOf(' : ');
+    const label    = colonIdx !== -1 ? detail.substring(0, colonIdx) : '';
+    const rest     = colonIdx !== -1 ? detail.substring(colonIdx + 3) : detail;
+    const arrowIdx = rest.indexOf(' -> ');
+    const oldVal   = arrowIdx !== -1 ? rest.substring(0, arrowIdx) : rest;
+    const newVal   = arrowIdx !== -1 ? rest.substring(arrowIdx + 4) : '';
+    div.innerHTML  = `<span class="d-label">${escHtml(label)}</span>`
+      + `<span class="d-old">${escHtml(oldVal)}</span>`
+      + `<span class="d-arrow"> → </span>`
+      + `<span class="d-new">${escHtml(newVal)}</span>`;
+    return div;
+  }
+
+  // Fallback
+  div.className  = 'modal-detail';
+  div.innerHTML  = escHtml(detail);
+  return div;
+}
+
+function openAlertModal(log) {
+  document.getElementById('modal-title').innerHTML = highlight(log.message);
+  document.getElementById('modal-ts').textContent  = log.timestamp || '';
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+  (log.details || []).forEach(d => body.appendChild(renderDetail(d)));
+  document.getElementById('alert-overlay').classList.add('open');
+}
+function closeAlertModal()  { document.getElementById('alert-overlay').classList.remove('open'); }
+function handleAlertOverlay(e) { if (e.target === document.getElementById('alert-overlay')) closeAlertModal(); }
+
+/* ─────────────────────────────────────────────────────────────
+   Discord modal
+   ───────────────────────────────────────────────────────────── */
+async function openDiscordModal() {
+  const cfg = await fetch('/api/discord-config', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
+  document.getElementById('discord-webhook').value    = cfg.webhook_url || '';
+  document.getElementById('discord-panel-url').value  = cfg.panel_url   || 'http://192.168.1.68:5000';
+  document.getElementById('discord-overlay').classList.add('open');
+}
+function closeDiscordModal() { document.getElementById('discord-overlay').classList.remove('open'); }
+function handleDiscordOverlay(e) { if (e.target === document.getElementById('discord-overlay')) closeDiscordModal(); }
+
+async function saveDiscordConfig() {
+  const payload = {
+    webhook_url: document.getElementById('discord-webhook').value.trim(),
+    panel_url:   document.getElementById('discord-panel-url').value.trim(),
+  };
+  await fetch('/api/discord-config', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {'Content-Type': 'application/json'},
+    credentials: 'same-origin',
+  });
+  closeDiscordModal();
+  showSimpleToast('✅ Configuration Discord enregistrée', 'info');
+}
+
+async function testDiscord() {
+  const webhookUrl = document.getElementById('discord-webhook').value.trim();
+  const panelUrl   = document.getElementById('discord-panel-url').value.trim();
+  if (!webhookUrl) { showSimpleToast('⚠ Entrez d\'abord une URL de webhook', 'warn'); return; }
+  await fetch('/api/discord-config', {
+    method: 'POST',
+    body: JSON.stringify({ webhook_url: webhookUrl, panel_url: panelUrl || 'http://192.168.1.68:5000' }),
+    headers: {'Content-Type': 'application/json'},
+    credentials: 'same-origin',
+  });
+  const payload = {
+    embeds: [{
+      title: '🧪 Test de notification — Surveillance Fichiers',
+      description: `Le panel de surveillance est opérationnel.\n\n🔗 **[Accéder au panel](${panelUrl || 'http://192.168.1.68:5000'})**`,
+      color: 0x16a34a,
+      footer: { text: 'File System Monitor — Test' },
+    }]
+  };
+  try {
+    const res = await fetch(webhookUrl, { method: 'POST', body: JSON.stringify(payload), headers: {'Content-Type': 'application/json'} });
+    if (res.ok) showSimpleToast('✅ Message test envoyé sur Discord !', 'info');
+    else        showSimpleToast('❌ Erreur Discord : vérifiez l\'URL du webhook', 'error');
+  } catch {
+    showSimpleToast('❌ Impossible d\'envoyer le message', 'error');
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAlertModal(); closeDiscordModal(); } });
+
+/* ─────────────────────────────────────────────────────────────
+   Build a log entry DOM element
+   ───────────────────────────────────────────────────────────── */
+function buildEntry(log, isNew = false) {
+  const hasDetails = log.details && log.details.length > 0;
+  const div = document.createElement('div');
+  div.className = `log-entry level-${log.level}${isNew ? ' new' : ''}${hasDetails ? ' has-details' : ''}`;
+  div.dataset.level = log.level;
+  div.dataset.raw   = (log.raw || '').toLowerCase();
+  div.innerHTML = `
+    <div class="log-cell log-ts">${log.timestamp || '—'}</div>
+    <div class="log-cell log-lvl">${log.level}</div>
+    <div class="log-cell log-msg">${highlight(log.message)}</div>
+    <div class="log-cell log-expand">${hasDetails ? '▶ détails' : ''}</div>
+  `;
+  if (hasDetails) div.addEventListener('click', () => openAlertModal(log));
+  return div;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   State & render
+   ───────────────────────────────────────────────────────────── */
+let allLogs      = [];
+let activeFilter = 'ALL';
+let autoScroll   = true;
+let userScrolled = false;
+let newWhileAway = 0;
+
+const logList       = document.getElementById('log-list');
+const emptyState    = document.getElementById('empty-state');
+const logCount      = document.getElementById('log-count');
+const lastUpdate    = document.getElementById('last-update');
+const scrollBtn     = document.getElementById('scroll-btn');
+const autoscrollBtn = document.getElementById('autoscroll-btn');
+
+function renderAll() {
+  const search = document.getElementById('search').value.toLowerCase();
+  logList.querySelectorAll('.log-entry').forEach(e => e.remove());
+
+  const filtered = allLogs.filter(l => {
+    const levelOk  = activeFilter === 'ALL' || l.level === activeFilter;
+    const searchOk = !search
+      || (l.raw || '').toLowerCase().includes(search)
+      || (l.details || []).join(' ').toLowerCase().includes(search);
+    return levelOk && searchOk;
+  });
+
+  emptyState.style.display = filtered.length === 0 ? 'flex' : 'none';
+  const frag = document.createDocumentFragment();
+  filtered.forEach(l => frag.appendChild(buildEntry(l)));
+  logList.appendChild(frag);
+  logCount.textContent = filtered.length;
+}
+
+function appendEntry(log) {
+  allLogs.push(log);
+  updateStats(log.level, '+');
+
+  const search   = document.getElementById('search').value.toLowerCase();
+  const levelOk  = activeFilter === 'ALL' || log.level === activeFilter;
+  const searchOk = !search
+    || (log.raw || '').toLowerCase().includes(search)
+    || (log.details || []).join(' ').toLowerCase().includes(search);
+
+  if (levelOk && searchOk) {
+    emptyState.style.display = 'none';
+    logList.appendChild(buildEntry(log, true));
+    logCount.textContent = parseInt(logCount.textContent) + 1;
+  }
+
+  lastUpdate.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR');
+
+  if (autoScroll && !userScrolled) {
+    scrollToBottom();
+  } else {
+    newWhileAway++;
+    scrollBtn.style.display = 'block';
+    scrollBtn.textContent   = `↓ ${newWhileAway} nouveau${newWhileAway > 1 ? 'x' : ''} log${newWhileAway > 1 ? 's' : ''}`;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Stats
+   ───────────────────────────────────────────────────────────── */
+const statEls = {
+  TOTAL:   document.getElementById('stat-total'),
+  INFO:    document.getElementById('stat-info'),
+  WARNING: document.getElementById('stat-warn'),
+  ERROR:   document.getElementById('stat-error'),
+};
+function setStats(c) {
+  statEls.TOTAL.textContent   = c.TOTAL   || 0;
+  statEls.INFO.textContent    = c.INFO    || 0;
+  statEls.WARNING.textContent = c.WARNING || 0;
+  statEls.ERROR.textContent   = c.ERROR   || 0;
+}
+function updateStats(level, op) {
+  const inc = op === '+' ? 1 : -1;
+  statEls.TOTAL.textContent = Math.max(0, +statEls.TOTAL.textContent + inc);
+  if (level === 'INFO')    statEls.INFO.textContent    = Math.max(0, +statEls.INFO.textContent    + inc);
+  if (level === 'WARNING') statEls.WARNING.textContent = Math.max(0, +statEls.WARNING.textContent + inc);
+  if (level === 'ERROR')   statEls.ERROR.textContent   = Math.max(0, +statEls.ERROR.textContent   + inc);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Filters & scroll
+   ───────────────────────────────────────────────────────────── */
+function setFilter(level) {
+  activeFilter = level;
+  document.querySelectorAll('.filter-group .btn').forEach(b => b.classList.remove('active'));
+  const map = { ALL:'btn-all', INFO:'btn-info', WARNING:'btn-warning', ERROR:'btn-error' };
+  document.getElementById(map[level]).classList.add('active');
+  renderAll();
+}
+function applyFilters() { renderAll(); }
+
+function scrollToBottom() {
+  logList.scrollTop = logList.scrollHeight;
+  userScrolled = false; newWhileAway = 0;
+  scrollBtn.style.display = 'none';
+}
+function toggleAutoScroll() {
+  autoScroll = !autoScroll;
+  autoscrollBtn.classList.toggle('active', autoScroll);
+  if (autoScroll) scrollToBottom();
+}
+logList.addEventListener('scroll', () => {
+  const atBottom = logList.scrollHeight - logList.scrollTop <= logList.clientHeight + 20;
+  if (!atBottom) { userScrolled = true; }
+  else { userScrolled = false; newWhileAway = 0; scrollBtn.style.display = 'none'; }
+});
+
+function clearDisplay() { allLogs = []; renderAll(); setStats({TOTAL:0,INFO:0,WARNING:0,ERROR:0}); }
+
+/* ─────────────────────────────────────────────────────────────
+   Toasts
+   ───────────────────────────────────────────────────────────── */
+function showSimpleToast(msg, type = 'info') {
+  const icons = { info:'ℹ️', warn:'⚠️', error:'🚨' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<div class="toast-icon">${icons[type]||'ℹ️'}</div><div class="toast-body"><div class="toast-msg">${escHtml(msg)}</div></div><div class="toast-close" onclick="this.parentElement.remove()">✕</div>`;
+  document.getElementById('toast-container').appendChild(toast);
+  setTimeout(() => { if (toast.isConnected) { toast.style.animation='slideOut .25s ease forwards'; setTimeout(()=>toast.remove(),250); } }, 4000);
+}
+
+function showToast(log) {
+  const level = log.level;
+  if (level === 'INFO' && !log.message.includes('[DÉTECTION]') && !log.message.includes('[DETECTION]')) return;
+  const icons = { INFO:'ℹ️', WARNING:'⚠️', ERROR:'🚨' };
+  const cls   = { INFO:'info', WARNING:'warn', ERROR:'error' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${cls[level]||'info'}`;
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[level]||'ℹ️'}</div>
+    <div class="toast-body">
+      <div class="toast-title">${escHtml(level)} — ${escHtml(log.timestamp||'')}</div>
+      <div class="toast-msg">${escHtml(log.message)}</div>
+    </div>
+    <div class="toast-close" onclick="event.stopPropagation();this.parentElement.remove()">✕</div>
+  `;
+  document.getElementById('toast-container').appendChild(toast);
+  toast.addEventListener('click', e => {
+    if (e.target.classList.contains('toast-close')) return;
+    toast.remove();
+    if (log.details && log.details.length > 0) openAlertModal(log);
+    else { setFilter('ALL'); scrollToBottom(); }
+  });
+  setTimeout(() => {
+    if (!toast.isConnected) return;
+    toast.style.animation = 'slideOut .25s ease forwards';
+    setTimeout(() => toast.remove(), 250);
+  }, 6000);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Initial load + SSE
+   ───────────────────────────────────────────────────────────── */
+async function loadHistory() {
+  try {
+    const opts = { credentials: 'same-origin' };
+    const [logsRes, statsRes] = await Promise.all([
+      fetch('/api/logs', opts),
+      fetch('/api/stats', opts),
+    ]);
+    if (logsRes.status === 401 || statsRes.status === 401) {
+      window.location.href = '/login';
+      return;
     }
-    fetch('/api/logs', { credentials: 'same-origin' })
-      .then(r => { if (r.status === 401) { window.location = '/login'; return []; } return r.json(); })
-      .then(data => {
-        if (!Array.isArray(data)) return;
-        data.forEach(entry => {
-          const msg = entry.message || entry.raw || JSON.stringify(entry);
-          let cls = '';
-          if ((entry.level || '').includes('ERROR')) cls = 'alert';
-          else if ((entry.level || '').includes('WARNING')) cls = 'warn';
-          appendLine((entry.timestamp ? '[' + entry.timestamp + '] ' : '') + msg, cls);
-          (entry.details || []).forEach(d => appendLine('  ' + d, cls));
-        });
-      })
-      .catch(() => {});
-    const es = new EventSource('/api/stream');
-    es.onopen = () => { statusEl.textContent = 'Flux temps réel actif'; };
-    es.onmessage = (ev) => {
-      try {
-        const entry = JSON.parse(ev.data);
-        const msg = entry.message || entry.raw || '';
-        let cls = '';
-        if ((entry.level || '').includes('ERROR')) cls = 'alert';
-        else if ((entry.level || '').includes('WARNING')) cls = 'warn';
-        appendLine((entry.timestamp ? '[' + entry.timestamp + '] ' : '') + msg, cls);
-        (entry.details || []).forEach(d => appendLine('  ' + d, cls));
-      } catch (e) { appendLine(ev.data); }
-    };
-    es.onerror = () => { statusEl.textContent = 'Flux interrompu (reconnexion…)'; };
-  </script>
+    const logs  = await logsRes.json();
+    const stats = await statsRes.json();
+    allLogs = logs; setStats(stats); renderAll();
+    if (logs.length > 0) scrollToBottom();
+    lastUpdate.textContent = 'Chargé à ' + new Date().toLocaleTimeString('fr-FR');
+  } catch (err) { console.error(err); }
+}
+
+const statusPill = document.getElementById('status-pill');
+const statusText = document.getElementById('status-text');
+function setStatus(connected) {
+  statusPill.className  = connected ? 'connected' : 'disconnected';
+  statusText.textContent = connected ? 'En ligne' : 'Déconnecté';
+}
+
+function connectSSE() {
+  const es = new EventSource('/api/stream');
+  es.onopen = () => setStatus(true);
+  es.onmessage = e => {
+    try { const log = JSON.parse(e.data); appendEntry(log); showToast(log); } catch {}
+  };
+  es.onerror = () => { setStatus(false); es.close(); setTimeout(connectSSE, 3000); };
+}
+
+autoscrollBtn.classList.add('active');
+loadHistory().then(() => connectSSE());
+</script>
+
 </body>
 </html>

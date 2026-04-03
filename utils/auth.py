@@ -58,9 +58,9 @@ def _ensure_users_db_file() -> dict:
     if changed:
         data["usernames"] = merged
 
-    # Hash manquant ou fichier corrompu : régénérer le mot de passe officiel
+    # Hash totalement absent : régénérer avec le mot de passe officiel
     h = data.get("password_hash")
-    if not h or not isinstance(h, str) or not h.startswith("pbkdf2:"):
+    if not h or not isinstance(h, str):
         data["password_hash"] = generate_password_hash(SHARED_PASSWORD_PLAINTEXT)
         changed = True
 
