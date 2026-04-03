@@ -12,8 +12,6 @@ import queue
 import threading
 import urllib.error
 import urllib.request
-from datetime import timedelta
-
 from flask import (
     Flask,
     Response,
@@ -54,7 +52,9 @@ def _get_secret_key() -> str:
 
 app = Flask(__name__)
 app.secret_key = _get_secret_key()
-app.permanent_session_lifetime = timedelta(hours=8)
+# Cookie de session uniquement : fermer le navigateur invalide la session (pas de persistance 8h).
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 LOG_FILE          = os.path.join(_BASE_DIR, "logs", "monitor.log")
 DISCORD_CFG_FILE  = os.path.join(_BASE_DIR, "discord_config.json")
@@ -407,7 +407,6 @@ def login():
         if verify_user_password(name, password):
             session["authenticated"] = True
             session["username"] = canonical_username_for_session(name) or name.strip()
-            session.permanent = True
             nxt = flask_request.args.get("next") or flask_request.form.get("next")
             if nxt and nxt.startswith("/"):
                 return redirect(nxt)
@@ -420,7 +419,21 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    resp = redirect(url_for("login"))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+@app.after_request
+def _no_store_sensitive_pages(response):
+    """Évite de mettre en cache le panel et les réponses API (données sensibles)."""
+    ep = flask_request.endpoint
+    path = flask_request.path
+    if ep in ("index", "login") or path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store" />
   <title>Connexion — Surveillance Fichiers</title>
   <style>
     :root {
@@ -14,8 +15,9 @@
       --muted:    #6b7280;
       --red:      #dc2626;
       --red-soft: #ef4444;
-      --yellow:   #eab308;
-      --yellow-dim: rgba(234, 179, 8, 0.14);
+      --blue:     #2563eb;
+      --blue-soft: #3b82f6;
+      --blue-dim: rgba(37, 99, 235, 0.16);
       --radius:   7px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -97,30 +99,29 @@
     }
     input:focus {
       outline: none;
-      border-color: rgba(234, 179, 8, 0.55);
-      box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.12);
+      border-color: rgba(96, 165, 250, 0.65);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
     }
-    /* Bouton connexion : surbrillance jaune (équivalent « en ligne » sur le panel) */
     button[type="submit"] {
       width: 100%;
       margin-top: 8px;
       padding: 12px 18px;
-      border: 1px solid rgba(250, 204, 21, 0.55);
+      border: 1px solid rgba(96, 165, 250, 0.55);
       border-radius: 20px;
-      background: var(--yellow-dim);
-      color: #fef08a;
+      background: var(--blue-dim);
+      color: #bfdbfe;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
       letter-spacing: .02em;
       transition: background .2s, border-color .2s, color .2s, box-shadow .2s;
-      box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.1), 0 0 18px rgba(234, 179, 8, 0.2);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15), 0 0 18px rgba(37, 99, 235, 0.22);
     }
     button[type="submit"]:hover {
-      background: rgba(234, 179, 8, 0.24);
-      border-color: #facc15;
-      color: #fffbeb;
-      box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.35), 0 0 22px rgba(234, 179, 8, 0.32);
+      background: rgba(37, 99, 235, 0.32);
+      border-color: var(--blue-soft);
+      color: #eff6ff;
+      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4), 0 0 22px rgba(37, 99, 235, 0.35);
     }
     .err {
       background: rgba(220, 38, 38, 0.12);
@@ -151,7 +152,7 @@
 
   <div class="wrap">
     <div class="card">
-      <h1>Connexion au panel</h1>
+      <h1>Connexion</h1>
       <p class="subtitle">Identifiez-vous pour accéder aux logs et à la configuration. Seuls les comptes autorisés peuvent ouvrir l’outil.</p>
 
       {% if error %}
@@ -171,7 +172,7 @@
         <button type="submit">Se connecter</button>
       </form>
 
-      <p class="hint">Accès réservé aux administrateurs référencés dans la base du projet. En cas de problème, vérifiez users_db.json et le mot de passe partagé.</p>
+      <p class="hint">Accès réservé aux administrateurs référencés dans la base du projet. En cas de problème, contactez Tessa et dites « Pull ».</p>
     </div>
   </div>
 </body>
