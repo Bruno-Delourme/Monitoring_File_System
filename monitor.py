@@ -372,6 +372,7 @@ def get_monitored_file_paths():
                     paths.append(full)
         except OSError:
             return []
+        paths.sort(key=lambda p: os.path.basename(p).lower())
         return paths
 
     # Mode: liste de fichiers ciblés
@@ -411,6 +412,7 @@ def setup_watch(watch_directory, filenames):
     # Enregistrer la configuration de surveillance
     config["watch_directory"] = watch_directory
     config["watch_all"] = False
+    config["single_file_target"] = False
     config["filenames"] = filenames
     # Dictionnaire des métadonnées par fichier (clé = filename)
     config["file_metadata"] = {}  # rempli au fur et à mesure
@@ -469,7 +471,10 @@ def setup_watch_file(file_path):
         )
         return
 
-    return setup_watch(watch_directory, [filename])
+    setup_watch(watch_directory, [filename])
+    config = load_config()
+    config["single_file_target"] = True
+    save_config(config)
 
 
 def setup_watch_all(watch_directory):
@@ -490,6 +495,7 @@ def setup_watch_all(watch_directory):
 
     config["watch_directory"] = watch_directory
     config["watch_all"] = True
+    config["single_file_target"] = False
     config["filenames"] = []
     config.pop("filename", None)
     config["file_metadata"] = {}
@@ -527,6 +533,8 @@ def add_file(filename):
         return
     filenames.append(filename)
     config["filenames"] = filenames
+    if len(filenames) > 1:
+        config["single_file_target"] = False
     config.pop("filename", None)
     config.setdefault("file_metadata", {})
     save_config(config)
@@ -542,6 +550,8 @@ def remove_file(filename):
         return
     filenames = [f for f in filenames if f != filename]
     config["filenames"] = filenames
+    if len(filenames) != 1:
+        config["single_file_target"] = False
     config.pop("filename", None)
     meta = config.get("file_metadata")
     if isinstance(meta, dict):
@@ -576,10 +586,30 @@ def remove_watch():
     )
 
 
+def _print_file_state_block(name, file_path):
+    """Affiche l'état actuel d'un fichier (métadonnées lues sur disque)."""
+    print(f"\n--- {name} ---")
+    print(f"Chemin complet : {file_path}")
+    if not os.path.exists(file_path):
+        print("Statut : absent (en attente de l'apparition du fichier)")
+        return
+    meta = get_file_metadata(file_path)
+    if meta.get("exists"):
+        print("Statut : présent et surveillé")
+        print(f"  - Permissions : {_describe_permissions(meta.get('mode'))}")
+        print(f"  - Propriétaire : {meta.get('uid', 'N/A')}:{meta.get('gid', 'N/A')}")
+        print(f"  - Dernière modification : {meta.get('mtime', 'N/A')}")
+    else:
+        print("Statut : présent (métadonnées indisponibles)")
+
+
 def list_watch():
     """
-    Affiche la configuration de surveillance actuelle et le statut du fichier.
-    Affiche les métadonnées si le fichier est présent et surveillé.
+    Affiche la configuration de surveillance actuelle et le statut des fichiers.
+
+    - Mode dossier (watch_all) : état de **tous** les fichiers présents dans le dossier.
+    - Mode fichier unique (un seul nom ciblé) : état de **ce fichier uniquement**.
+    - Mode liste : état de chaque fichier ciblé.
     """
     config = load_config()
 
@@ -589,44 +619,50 @@ def list_watch():
         return
 
     # Récupérer les informations de configuration
-    watch_dir = config.get("watch_directory")
+    watch_dir = normalize_path(config.get("watch_directory"))
     watch_all = bool(config.get("watch_all", False))
-    filenames = _ensure_list(config.get("filenames") or config.get("filename"))
-    
+    filenames = [f for f in _ensure_list(config.get("filenames") or config.get("filename")) if f]
+    single_file_target = bool(config.get("single_file_target", False))
+    # Un seul fichier ciblé : même logique que le menu "commande 2" (fichier unique)
+    single_file_mode = (not watch_all) and len(filenames) == 1
+
     # Afficher la configuration
     print("\n=== Configuration de surveillance ===")
     print(f"Dossier surveillé : {watch_dir}")
     if watch_all:
-        print("Mode : tous les fichiers du dossier (non récursif)")
+        print("Mode : dossier complet — tous les fichiers du dossier (non récursif)")
+    elif single_file_target or single_file_mode:
+        if single_file_target:
+            print("Mode : fichier unique — ciblage par chemin complet (menu « fichier »)")
+        else:
+            print("Mode : un seul fichier ciblé dans la liste")
+        print(f"  Fichier : {filenames[0]}")
     else:
         print(f"Mode : fichiers ciblés ({len(filenames)})")
         for name in filenames:
             print(f"  - {name}")
-    
-    # Afficher le statut et les métadonnées pour chaque fichier
-    meta_map = config.get("file_metadata") if isinstance(config.get("file_metadata"), dict) else {}
-    # En mode watch_all, on liste ce qui est présent à l'instant T
-    names_to_show = (
-        [os.path.basename(p) for p in get_monitored_file_paths()]
-        if watch_all
-        else filenames
-    )
 
-    for name in names_to_show:
+    # --- État actuel (lecture disque, pas seulement le cache config) ---
+    if watch_all:
+        paths = get_monitored_file_paths()
+        print(f"\n--- État des fichiers dans le dossier ({len(paths)} fichier(s)) ---")
+        if not paths:
+            print("(Aucun fichier pour l'instant dans ce dossier.)")
+        for file_path in paths:
+            _print_file_state_block(os.path.basename(file_path), file_path)
+        return
+
+    if single_file_target or single_file_mode:
+        name = filenames[0]
         file_path = normalize_path(os.path.join(watch_dir, name))
-        print(f"\n--- {name} ---")
-        print(f"Chemin complet : {file_path}")
-        if os.path.exists(file_path):
-            meta = meta_map.get(name)
-            if meta:
-                print("Statut : présent et surveillé")
-                print(f"  - Permissions : {_describe_permissions(meta.get('mode'))}")
-                print(f"  - Propriétaire : {meta.get('uid', 'N/A')}:{meta.get('gid', 'N/A')}")
-                print(f"  - Dernière modification : {meta.get('mtime', 'N/A')}")
-            else:
-                print("Statut : présent (métadonnées en cours de chargement)")
-        else:
-            print("Statut : absent (en attente de l'apparition du fichier)")
+        print("\n--- État du fichier surveillé ---")
+        _print_file_state_block(name, file_path)
+        return
+
+    print("\n--- État des fichiers surveillés ---")
+    for name in filenames:
+        file_path = normalize_path(os.path.join(watch_dir, name))
+        _print_file_state_block(name, file_path)
 
 
 def chmod_file(path, mode_str):
