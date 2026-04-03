@@ -32,6 +32,112 @@ CONFIG_FILE = "config.json"
 IGNORE_CONTENT_CHANGES = True
 
 
+_UID_TO_NAME = None
+_GID_TO_NAME = None
+
+
+def _load_uid_gid_maps():
+    """
+    Charge une correspondance UID->nom ( /etc/passwd ) et GID->nom ( /etc/group ).
+    Retourne des dicts vides si les fichiers sont indisponibles.
+    """
+    global _UID_TO_NAME, _GID_TO_NAME
+    if _UID_TO_NAME is not None and _GID_TO_NAME is not None:
+        return _UID_TO_NAME, _GID_TO_NAME
+
+    uid_map = {}
+    gid_map = {}
+
+    try:
+        with open("/etc/passwd", "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split(":")
+                if len(parts) >= 4:
+                    name = parts[0]
+                    uid = parts[2]
+                    try:
+                        uid_int = int(uid)
+                        uid_map[uid_int] = name
+                    except ValueError:
+                        pass
+    except OSError:
+        pass
+
+    try:
+        with open("/etc/group", "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split(":")
+                if len(parts) >= 3:
+                    name = parts[0]
+                    gid = parts[2]
+                    try:
+                        gid_int = int(gid)
+                        gid_map[gid_int] = name
+                    except ValueError:
+                        pass
+    except OSError:
+        pass
+
+    _UID_TO_NAME = uid_map
+    _GID_TO_NAME = gid_map
+    return _UID_TO_NAME, _GID_TO_NAME
+
+
+def _resolve_uid(uid):
+    uid_map, _ = _load_uid_gid_maps()
+    try:
+        return uid_map.get(int(uid), f"uid={uid}")
+    except (TypeError, ValueError):
+        return f"uid={uid}"
+
+
+def _resolve_gid(gid):
+    _, gid_map = _load_uid_gid_maps()
+    try:
+        return gid_map.get(int(gid), f"gid={gid}")
+    except (TypeError, ValueError):
+        return f"gid={gid}"
+
+
+def _detect_privilege_escalation(old_meta, new_meta):
+    """
+    Détecte une élévation de privilèges basée sur l'appartenance à uid/gid=0.
+
+    Cas visé : l'attaquant peut créer/altérer une entrée passwd du type
+    'hacker:x:0:0:...' (uid=0, gid=0). Le script doit alors alerter
+    même si le nom affiché n'est pas 'root'.
+    """
+    if not new_meta or not new_meta.get("exists"):
+        return None
+
+    old_uid = (old_meta or {}).get("uid")
+    old_gid = (old_meta or {}).get("gid")
+    new_uid = new_meta.get("uid")
+    new_gid = new_meta.get("gid")
+
+    reasons = []
+    # Propriétaire root (uid=0)
+    if new_uid == 0 and old_uid != 0:
+        reasons.append(
+            f"propriétaire -> uid=0 ({_resolve_uid(new_uid)})"
+        )
+    # Groupe root (gid=0)
+    if new_gid == 0 and old_gid != 0:
+        reasons.append(
+            f"groupe -> gid=0 ({_resolve_gid(new_gid)})"
+        )
+
+    if reasons:
+        return " | ".join(reasons)
+    return None
+
+
 def _describe_permissions(mode_str):
     """
     Rend les permissions compréhensibles pour les non-initiés.
@@ -412,11 +518,17 @@ class MonitorHandler(FileSystemEventHandler):
                         f"Intégrité modifiée (SHA256) : {old.get('sha256')} -> {new.get('sha256')}"
                     )
 
+        # Détection d'élévation de privilèges (uid/gid=0)
+        privilege_reason = _detect_privilege_escalation(old, new)
+        if privilege_reason:
+            changes.insert(0, f"ÉLEVATION DE PRIVILÈGES suspecte: {privilege_reason}")
+
         # Si des changements ont été détectés, alerter et mettre à jour la config
         if changes:
+            is_critical = bool(privilege_reason)
             log_and_print(
-                f"[ALERTE] Modification détectée sur : {path}",
-                level="warning",
+                f"[{'CRITIQUE' if is_critical else 'ALERTE'}] Modification détectée sur : {path}",
+                level="error" if is_critical else "warning",
                 color=COLOR_RED
             )
 
