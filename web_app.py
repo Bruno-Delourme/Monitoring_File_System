@@ -24,11 +24,10 @@ from flask import (
     redirect,
     url_for,
 )
-from werkzeug.security import check_password_hash, generate_password_hash
-
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_WEB_AUTH_FILE = os.path.join(_BASE_DIR, "web_auth.json")
 _WEB_SECRET_FILE = os.path.join(_BASE_DIR, ".web_secret_key")
+
+from utils.auth import AUTH_ERROR_MESSAGE, load_users_db, verify_user_password
 
 
 def _get_secret_key() -> str:
@@ -46,23 +45,6 @@ def _get_secret_key() -> str:
     except OSError:
         pass
     return key
-
-
-def load_web_auth() -> dict:
-    """Charge ou crée web_auth.json (mot de passe haché)."""
-    if not os.path.exists(_WEB_AUTH_FILE):
-        data = {
-            "username": "admin",
-            "password_hash": generate_password_hash("changeme"),
-        }
-        with open(_WEB_AUTH_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        print(
-            "\n  [ATTENTION] web_auth.json cree : utilisateur=admin mot_de_passe=changeme "
-            "(changez-le ou editez le fichier)\n"
-        )
-    with open(_WEB_AUTH_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 app = Flask(__name__)
@@ -404,25 +386,23 @@ def _require_login():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    load_web_auth()
+    load_users_db()
     if session.get("authenticated"):
         return redirect(url_for("index"))
 
     error = None
     if flask_request.method == "POST":
-        cfg = load_web_auth()
         name = flask_request.form.get("username", "").strip()
         password = flask_request.form.get("password", "")
-        if name == cfg.get("username") and check_password_hash(
-            cfg.get("password_hash", ""), password
-        ):
+        if verify_user_password(name, password):
             session["authenticated"] = True
+            session["username"] = name
             session.permanent = True
             nxt = flask_request.args.get("next") or flask_request.form.get("next")
             if nxt and nxt.startswith("/"):
                 return redirect(nxt)
             return redirect(url_for("index"))
-        error = "Identifiant ou mot de passe incorrect."
+        error = AUTH_ERROR_MESSAGE
 
     return render_template("login.html", error=error)
 
@@ -519,11 +499,11 @@ def set_discord_config():
 
 def run_web(host="0.0.0.0", port=5000, debug=False):
     """Lance le serveur Flask (interface web authentifiée)."""
-    load_web_auth()
+    load_users_db()
     ensure_tail_thread_started()
     print("\n  File System Monitor — Interface Web")
     print(f"  ➜  http://localhost:{port}")
-    print("  Connexion requise (voir web_auth.json : admin / changeme par défaut)\n")
+    print("  Connexion : utilisateurs autorisés (voir users_db.json)\n")
     app.run(host=host, port=port, debug=debug, threaded=True)
 
 

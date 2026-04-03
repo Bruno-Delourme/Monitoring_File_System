@@ -6,6 +6,7 @@ Surveille un fichier spécifique dans un dossier donné et alerte en cas de modi
 
 # Imports standard
 import os
+import sys
 import json
 import time
 import argparse
@@ -1183,6 +1184,11 @@ def main():
     Parse les arguments de la ligne de commande et exécute la commande demandée.
     """
     parser = build_parser()
+    if "--help" not in sys.argv and "-h" not in sys.argv:
+        from utils.auth import ensure_cli_authenticated
+
+        ensure_cli_authenticated()
+
     args = parser.parse_args()
 
     # Router vers la fonction appropriée selon la commande
