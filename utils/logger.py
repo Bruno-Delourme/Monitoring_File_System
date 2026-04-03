@@ -2,7 +2,9 @@ import os
 import logging
 from datetime import datetime
 
-LOG_DIR = "logs"
+# Toujours écrire sous la racine du projet (même chemin que web_app.py lit pour le panel)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOG_DIR = os.path.join(_PROJECT_ROOT, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "monitor.log")
 
 os.makedirs(LOG_DIR, exist_ok=True)

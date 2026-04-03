@@ -275,7 +275,7 @@ def group_logs(parsed_lines: list) -> list:
         line = parsed_lines[i]
         msg  = line.get("message", "")
 
-        if "[ALERTE]" in msg:
+        if "[ALERTE]" in msg or "[CRITIQUE]" in msg:
             details = []
             j = i + 1
             while j < len(parsed_lines):
@@ -337,7 +337,10 @@ def tail_log() -> None:
 
                     # Si une alerte est détectée, attendre que toutes les lignes
                     # de détail soient écrites avant de grouper
-                    if any("[ALERTE]" in p.get("message", "") for p in parsed):
+                    if any(
+                        "[ALERTE]" in p.get("message", "") or "[CRITIQUE]" in p.get("message", "")
+                        for p in parsed
+                    ):
                         time.sleep(0.2)
                         current_size2 = os.path.getsize(LOG_FILE)
                         if current_size2 > last_size:
@@ -349,7 +352,9 @@ def tail_log() -> None:
 
                     for entry in group_logs(parsed):
                         _broadcast(json.dumps(entry))
-                        if "[ALERTE]" in entry.get("message", ""):
+                        if "[ALERTE]" in entry.get("message", "") or "[CRITIQUE]" in entry.get(
+                            "message", ""
+                        ):
                             threading.Thread(
                                 target=send_discord_alert, args=(entry,), daemon=True
                             ).start()
