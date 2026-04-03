@@ -253,10 +253,19 @@
     .modal-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
     .modal-title-wrap { flex: 1; min-width: 0; }
     .modal-title {
-      font-family: 'Cascadia Code', monospace; font-size: 12px; font-weight: 600;
-      color: var(--red-soft); line-height: 1.5; word-break: break-all;
+      font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; font-weight: 700;
+      color: var(--red-soft); line-height: 1.45; word-break: break-word;
     }
-    .modal-ts { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .modal-title .modal-title-stack { display: flex; flex-direction: column; gap: 8px; }
+    .modal-title .modal-title-line1 { font-family: 'Cascadia Code', monospace; font-size: 12.5px; font-weight: 600; }
+    .modal-title-meta { font-size: 13px; color: var(--text); line-height: 1.4; }
+    .modal-title-label {
+      display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .85px;
+      color: var(--muted); font-weight: 700; margin-bottom: 3px;
+    }
+    .modal-title-path { font-family: 'Cascadia Code', monospace; font-size: 12.5px; color: #e2e8f0; word-break: break-all; }
+    .modal-title-file { font-family: 'Cascadia Code', monospace; font-size: 13px; font-weight: 600; color: #fecaca; }
+    .modal-ts { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .modal-close { color: var(--muted); font-size: 17px; cursor: pointer; flex-shrink: 0; line-height: 1; }
     .modal-close:hover { color: var(--text); }
     .modal-body { padding: 16px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
@@ -265,17 +274,17 @@
     .alert-modal-root { display: flex; flex-direction: column; gap: 4px; }
     .alert-summary { display: flex; flex-direction: column; gap: 14px; }
     .alert-section-title {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 1.15px;
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.15px;
       color: var(--muted); font-weight: 800; margin: 0 0 2px 0;
     }
     .alert-section-title.spaced { margin-top: 4px; }
-    .alert-section-sub { font-size: 12.5px; color: var(--text); line-height: 1.5; margin: 0 0 6px 0; }
+    .alert-section-sub { font-size: 13px; color: var(--text); line-height: 1.5; margin: 0 0 6px 0; }
     .alert-section-sub em { color: var(--muted); font-style: normal; font-weight: 600; }
-    .alert-muted { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin: 0; }
+    .alert-muted { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin: 0; }
     .alert-muted strong { color: var(--text); font-weight: 600; }
-    .alert-bullets { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+    .alert-bullets { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.65; color: var(--text); }
     .alert-bullets li { margin-bottom: 6px; }
-    .alert-cap-list { margin: 4px 0 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+    .alert-cap-list { margin: 4px 0 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.65; color: var(--text); }
     .alert-cap-list li { margin-bottom: 8px; }
     .alert-cap-list strong { color: var(--text); font-weight: 600; }
     .alert-warn { color: var(--orange); }
@@ -285,7 +294,7 @@
       background: #0a0a0a; overflow: hidden;
     }
     details.alert-tech summary {
-      cursor: pointer; padding: 12px 14px; font-size: 11.5px; font-weight: 600;
+      cursor: pointer; padding: 12px 14px; font-size: 12px; font-weight: 600;
       color: var(--muted); list-style: none; user-select: none;
       display: flex; align-items: center; gap: 8px;
     }
@@ -295,10 +304,17 @@
     details.alert-tech[open] summary { border-bottom: 1px solid var(--border); color: var(--text); background: var(--surface2); }
     .alert-tech-inner { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; max-height: min(42vh, 380px); overflow-y: auto; }
     .alert-tech-block { display: flex; flex-direction: column; gap: 6px; }
-    .alert-tech-label { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
+    .alert-tech-pair { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .alert-tech-pair:last-child { border-bottom: none; padding-bottom: 0; }
+    .alert-tech-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
+    .alert-tech-sub {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .45px;
+      color: #64748b; font-weight: 600; margin: 8px 0 4px 0;
+    }
+    .alert-tech-sub:first-of-type { margin-top: 2px; }
     .alert-tech-pre {
       font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-      font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-all;
+      font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-all;
       background: var(--surface2); padding: 10px 12px; border-radius: 6px;
       border: 1px solid var(--border); margin: 0; color: var(--text);
     }
@@ -543,6 +559,43 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+/** Découpe un chemin complet en dossier + nom de fichier (/, \\). */
+function splitPathForAlert(fullPath) {
+  const p = String(fullPath).trim();
+  if (!p) return { dir: '', file: '' };
+  const sep = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+  if (sep < 0) return { dir: '', file: p };
+  if (sep === 0 && p[0] === '/') return { dir: '/', file: p.slice(1) };
+  return { dir: p.slice(0, sep), file: p.slice(sep + 1) };
+}
+
+/**
+ * Titre modale : [ALERTE|CRITIQUE] … puis dossier et fichier(s) sans répéter le chemin complet.
+ */
+function formatAlertTitleHtml(rawMsg) {
+  const msg = String(rawMsg);
+  const m = msg.match(/^(\[[^\]]+\])\s*Modification détectée sur\s*:\s*(.+)$/i);
+  if (!m) return highlight(msg);
+
+  const tag = m[1];
+  const fullPath = m[2].trim();
+  const { dir, file } = splitPathForAlert(fullPath);
+
+  const line1 = highlight(`${tag} Modification détectée`);
+  const dirShown = dir === '' ? '(dossier courant ou racine)' : escHtml(dir);
+  const fileShown = escHtml(file);
+
+  return (
+    '<div class="modal-title-stack">'
+    + `<div class="modal-title-line1">${line1}</div>`
+    + '<div class="modal-title-meta"><span class="modal-title-label">Dossier</span>'
+    + `<span class="modal-title-path">${dirShown}</span></div>`
+    + '<div class="modal-title-meta"><span class="modal-title-label">Fichier cible</span>'
+    + `<span class="modal-title-file">${fileShown}</span></div>`
+    + '</div>'
+  );
+}
+
 function highlight(msg) {
   msg = escHtml(msg);
   const rules = [
@@ -646,9 +699,6 @@ function buildAlertModalHtml(c) {
     parts.push(
       `<p class="alert-muted">Les droits d'accès sont passés de <strong>${escHtml(oct.oldMode)}</strong> à <strong>${escHtml(oct.newMode)}</strong>.</p>`
     );
-    parts.push(
-      '<p class="alert-section-sub">Ci-dessous, ce que signifie <em>lecture</em>, <em>écriture</em> et <em>exécution</em> pour chaque catégorie d\'utilisateurs :</p>'
-    );
     parts.push(renderCapabilitiesList(oct.newMode));
   } else if (hasPerm && !oct) {
     parts.push('<div class="alert-section-title spaced">Droits d\'accès</div>');
@@ -679,28 +729,30 @@ function buildAlertModalHtml(c) {
       parts.push(`<pre class="alert-tech-pre">${escHtml(c.permFullLine)}</pre>`);
       parts.push('</div>');
     }
-    if (c.etatPrev) {
-      parts.push('<div class="alert-tech-block">');
-      parts.push('<div class="alert-tech-label">État précédent (texte journal)</div>');
-      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.etatPrev))}</pre>`);
+    if (c.etatPrev || c.brutOld) {
+      parts.push('<div class="alert-tech-block alert-tech-pair">');
+      parts.push('<div class="alert-tech-label">Avant modification</div>');
+      if (c.etatPrev) {
+        parts.push('<div class="alert-tech-sub">Résumé (journal)</div>');
+        parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.etatPrev))}</pre>`);
+      }
+      if (c.brutOld) {
+        parts.push('<div class="alert-tech-sub">Données brutes (dict)</div>');
+        parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.brutOld))}</pre>`);
+      }
       parts.push('</div>');
     }
-    if (c.etatActuel) {
-      parts.push('<div class="alert-tech-block">');
-      parts.push('<div class="alert-tech-label">État actuel (texte journal)</div>');
-      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.etatActuel))}</pre>`);
-      parts.push('</div>');
-    }
-    if (c.brutOld) {
-      parts.push('<div class="alert-tech-block">');
-      parts.push('<div class="alert-tech-label">Ancien état (dictionnaire brut)</div>');
-      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.brutOld))}</pre>`);
-      parts.push('</div>');
-    }
-    if (c.brutNew) {
-      parts.push('<div class="alert-tech-block">');
-      parts.push('<div class="alert-tech-label">Nouvel état (dictionnaire brut)</div>');
-      parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.brutNew))}</pre>`);
+    if (c.etatActuel || c.brutNew) {
+      parts.push('<div class="alert-tech-block alert-tech-pair">');
+      parts.push('<div class="alert-tech-label">Après modification</div>');
+      if (c.etatActuel) {
+        parts.push('<div class="alert-tech-sub">Résumé (journal)</div>');
+        parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.etatActuel))}</pre>`);
+      }
+      if (c.brutNew) {
+        parts.push('<div class="alert-tech-sub">Données brutes (dict)</div>');
+        parts.push(`<pre class="alert-tech-pre">${escHtml(extractAfterFirstColonLabel(c.brutNew))}</pre>`);
+      }
       parts.push('</div>');
     }
 
@@ -712,7 +764,7 @@ function buildAlertModalHtml(c) {
 }
 
 function openAlertModal(log) {
-  document.getElementById('modal-title').innerHTML = highlight(log.message);
+  document.getElementById('modal-title').innerHTML = formatAlertTitleHtml(log.message);
   document.getElementById('modal-ts').textContent  = log.timestamp || '';
   const body = document.getElementById('modal-body');
   const details = log.details || [];
