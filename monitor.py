@@ -352,14 +352,31 @@ def get_monitored_file_paths():
     """
     config = load_config()
     watch_dir = config.get("watch_directory")
+    watch_all = bool(config.get("watch_all", False))
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     
     # Vérifier que la configuration contient les informations nécessaires
-    if not watch_dir or not filenames:
+    if not watch_dir:
         return []
     
     # Normaliser le chemin du dossier et construire le chemin complet
     watch_dir = normalize_path(watch_dir)
+
+    # Mode: tout le dossier (non récursif)
+    if watch_all:
+        paths = []
+        try:
+            for entry in os.listdir(watch_dir):
+                full = normalize_path(os.path.join(watch_dir, entry))
+                if os.path.isfile(full):
+                    paths.append(full)
+        except OSError:
+            return []
+        return paths
+
+    # Mode: liste de fichiers ciblés
+    if not filenames:
+        return []
     paths = []
     for name in filenames:
         if not name:
@@ -393,6 +410,7 @@ def setup_watch(watch_directory, filenames):
 
     # Enregistrer la configuration de surveillance
     config["watch_directory"] = watch_directory
+    config["watch_all"] = False
     config["filenames"] = filenames
     # Dictionnaire des métadonnées par fichier (clé = filename)
     config["file_metadata"] = {}  # rempli au fur et à mesure
@@ -424,6 +442,75 @@ def setup_watch(watch_directory, filenames):
         save_config(config)
 
 
+def setup_watch_file(file_path):
+    """
+    Configure la surveillance d'un fichier unique à partir de son chemin complet.
+    """
+    if not file_path:
+        log_and_print("[ERREUR] Chemin du fichier manquant.", level="error", color=COLOR_RED)
+        return
+
+    file_path = normalize_path(file_path)
+    if not os.path.isabs(file_path):
+        log_and_print(
+            f"[ERREUR] Le chemin doit être absolu (complet) : {file_path}",
+            level="error",
+            color=COLOR_RED,
+        )
+        return
+
+    watch_directory = normalize_path(os.path.dirname(file_path))
+    filename = os.path.basename(file_path)
+    if not watch_directory or not filename:
+        log_and_print(
+            f"[ERREUR] Chemin invalide : {file_path}",
+            level="error",
+            color=COLOR_RED,
+        )
+        return
+
+    return setup_watch(watch_directory, [filename])
+
+
+def setup_watch_all(watch_directory):
+    """
+    Configure la surveillance de tout le dossier (tous les fichiers qu'il contient).
+    Non récursif.
+    """
+    watch_directory = normalize_path(watch_directory)
+    config = load_config()
+
+    if not os.path.isdir(watch_directory):
+        log_and_print(
+            f"[ERREUR] Le dossier n'existe pas : {watch_directory}",
+            level="error",
+            color=COLOR_RED,
+        )
+        return
+
+    config["watch_directory"] = watch_directory
+    config["watch_all"] = True
+    config["filenames"] = []
+    config.pop("filename", None)
+    config["file_metadata"] = {}
+    config.setdefault("probe_interval", DEFAULT_PROBE_INTERVAL)
+    config.setdefault("probe_users", [])
+    config.setdefault("probe_actions", ["read"])
+    save_config(config)
+
+    log_and_print(
+        f"[+] Surveillance configurée : tous les fichiers du dossier '{watch_directory}'",
+        color=COLOR_GREEN,
+    )
+
+    # Précharger les métadonnées des fichiers déjà présents
+    meta_map = {}
+    for p in get_monitored_file_paths():
+        meta_map[os.path.basename(p)] = get_file_metadata(p)
+    config["file_metadata"] = meta_map
+    save_config(config)
+
+
 def add_file(filename):
     """Ajoute un fichier à la liste surveillée (même dossier)."""
     config = load_config()
@@ -431,6 +518,9 @@ def add_file(filename):
     if not watch_dir:
         log_and_print("[ERREUR] Aucune surveillance configurée.", level="error", color=COLOR_RED)
         return
+    if config.get("watch_all"):
+        # Basculer en mode "liste ciblée" si on veut cibler un fichier
+        config["watch_all"] = False
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     if filename in filenames:
         log_and_print(f"[INFO] Déjà surveillé : {filename}", color=COLOR_YELLOW)
@@ -500,18 +590,29 @@ def list_watch():
 
     # Récupérer les informations de configuration
     watch_dir = config.get("watch_directory")
+    watch_all = bool(config.get("watch_all", False))
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     
     # Afficher la configuration
     print("\n=== Configuration de surveillance ===")
     print(f"Dossier surveillé : {watch_dir}")
-    print(f"Fichiers surveillés ({len(filenames)}) :")
-    for name in filenames:
-        print(f"  - {name}")
+    if watch_all:
+        print("Mode : tous les fichiers du dossier (non récursif)")
+    else:
+        print(f"Mode : fichiers ciblés ({len(filenames)})")
+        for name in filenames:
+            print(f"  - {name}")
     
     # Afficher le statut et les métadonnées pour chaque fichier
     meta_map = config.get("file_metadata") if isinstance(config.get("file_metadata"), dict) else {}
-    for name in filenames:
+    # En mode watch_all, on liste ce qui est présent à l'instant T
+    names_to_show = (
+        [os.path.basename(p) for p in get_monitored_file_paths()]
+        if watch_all
+        else filenames
+    )
+
+    for name in names_to_show:
         file_path = normalize_path(os.path.join(watch_dir, name))
         print(f"\n--- {name} ---")
         print(f"Chemin complet : {file_path}")
@@ -577,6 +678,7 @@ class MonitorHandler(FileSystemEventHandler):
     def __init__(self):
         """Initialise le handler et charge la configuration."""
         self.watch_directory = None  # Dossier surveillé
+        self.watch_all = False
         self.filenames = []  # Noms des fichiers recherchés
         self.monitored_file_paths = set()  # Chemins complets surveillés
         self._load_config()
@@ -588,10 +690,11 @@ class MonitorHandler(FileSystemEventHandler):
         """
         config = load_config()
         self.watch_directory = normalize_path(config.get("watch_directory", ""))
+        self.watch_all = bool(config.get("watch_all", False))
         self.filenames = _ensure_list(config.get("filenames") or config.get("filename"))
         
         self.monitored_file_paths = set()
-        if self.watch_directory and self.filenames:
+        if self.watch_directory and (self.watch_all or self.filenames):
             for name in self.filenames:
                 if not name:
                     continue
@@ -609,9 +712,20 @@ class MonitorHandler(FileSystemEventHandler):
         Returns:
             bool: True si le chemin correspond au fichier surveillé, False sinon.
         """
+        if not self.watch_directory:
+            return False
+
+        p = normalize_path(path)
+        # Mode: tout le dossier (fichiers uniquement, non récursif)
+        if self.watch_all:
+            try:
+                return os.path.dirname(p) == self.watch_directory and os.path.isfile(p)
+            except OSError:
+                return False
+
         if not self.monitored_file_paths:
             return False
-        return normalize_path(path) in self.monitored_file_paths
+        return p in self.monitored_file_paths
 
     def _filename_from_path(self, path):
         try:
@@ -776,6 +890,7 @@ def start_monitor(scan_interval=1):
         return
 
     watch_directory = normalize_path(config.get("watch_directory"))
+    watch_all = bool(config.get("watch_all", False))
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
 
     # Vérifier que le dossier existe
@@ -798,7 +913,11 @@ def start_monitor(scan_interval=1):
         color=COLOR_CYAN
     )
     log_and_print(
-        f"[WATCH] Fichiers recherchés ({len(filenames)}) : {', '.join(filenames)}",
+        (
+            "[WATCH] Mode : tous les fichiers du dossier"
+            if watch_all
+            else f"[WATCH] Fichiers recherchés ({len(filenames)}) : {', '.join(filenames)}"
+        ),
         color=COLOR_CYAN
     )
 
@@ -841,44 +960,50 @@ def interactive_menu():
     while True:
         # Afficher le menu principal
         print("\n=== FILE SYSTEM MONITOR ===")
-        print("1. Configurer la surveillance (dossier + nom de fichier)")
-        print("1b. Ajouter un fichier à surveiller")
-        print("1c. Retirer un fichier surveillé")
-        print("2. Supprimer la configuration de surveillance")
-        print("3. Afficher la configuration actuelle")
-        print("4. Modifier les permissions du fichier surveillé")
-        print("5. Lancer la surveillance")
-        print("6. Quitter")
+        print("1. Cibler un dossier (surveiller tous les fichiers)")
+        print("2. Cibler un fichier (chemin complet obligatoire)")
+        print("3. Ajouter un fichier à surveiller (mode fichiers ciblés)")
+        print("4. Retirer un fichier surveillé (mode fichiers ciblés)")
+        print("5. Supprimer la configuration de surveillance")
+        print("6. Afficher la configuration actuelle")
+        print("7. Modifier les permissions d'un fichier surveillé")
+        print("8. Lancer la surveillance")
+        print("9. Quitter")
 
         choice = input("Choix : ").strip()
 
-        # Option 1: Configuration de la surveillance
+        # 1) Cibler un dossier
         if choice == "1":
             watch_dir = input("Dossier à surveiller : ").strip()
-            filenames_raw = input("Nom(s) de fichier(s) à surveiller (séparés par des espaces) : ").strip()
-            filenames = [f for f in filenames_raw.split(" ") if f]
-            setup_watch(watch_dir, filenames)
+            setup_watch_all(watch_dir)
 
-        elif choice.lower() == "1b":
-            filename = input("Nom du fichier à ajouter : ").strip()
+        # 2) Cibler un fichier (chemin complet)
+        elif choice == "2":
+            file_path = input("Chemin complet du fichier (ex: /home/user/test.txt) : ").strip()
+            setup_watch_file(file_path)
+
+        # 3) Ajouter fichier (mode fichiers ciblés)
+        elif choice == "3":
+            filename = input("Nom du fichier à ajouter (dans le dossier ciblé) : ").strip()
             if filename:
                 add_file(filename)
 
-        elif choice.lower() == "1c":
+        # 4) Retirer fichier
+        elif choice == "4":
             filename = input("Nom du fichier à retirer : ").strip()
             if filename:
                 remove_file(filename)
 
-        # Option 2: Suppression de la configuration
-        elif choice == "2":
+        # 5) Supprimer config
+        elif choice == "5":
             remove_watch()
 
-        # Option 3: Affichage de la configuration
-        elif choice == "3":
+        # 6) Afficher config
+        elif choice == "6":
             list_watch()
 
-        # Option 4: Modification des permissions
-        elif choice == "4":
+        # 7) chmod
+        elif choice == "7":
             file_paths = get_monitored_file_paths()
             if not file_paths:
                 log_and_print(
@@ -903,8 +1028,8 @@ def interactive_menu():
                 mode = input("Nouvelles permissions (ex: 644, 600, 755) : ").strip()
                 chmod_file(selected_path, mode)
 
-        # Option 5: Lancement de la surveillance
-        elif choice == "5":
+        # 8) monitor
+        elif choice == "8":
             interval_raw = input("Intervalle de scan en secondes (défaut 1) : ").strip()
             try:
                 interval = int(interval_raw) if interval_raw else 1
@@ -913,8 +1038,8 @@ def interactive_menu():
                 interval = 1
             start_monitor(scan_interval=interval)
 
-        # Option 6: Quitter
-        elif choice == "6":
+        # 9) quitter
+        elif choice == "9":
             print("Fermeture.")
             break
 
@@ -940,10 +1065,13 @@ def build_parser():
     # Commande setup: configurer la surveillance
     parser_setup = subparsers.add_parser(
         "setup",
-        help="Configurer la surveillance (dossier + nom de fichier)"
+        help="Configurer la surveillance (dossier complet ou fichier(s) ciblé(s))"
     )
-    parser_setup.add_argument("directory", help="Dossier à surveiller")
-    parser_setup.add_argument("filenames", nargs="+", help="Nom(s) de fichier(s) à surveiller")
+    parser_setup.add_argument("directory", nargs="?", help="Dossier à surveiller (mode --all ou fichiers relatifs au dossier)")
+    parser_setup.add_argument("filenames", nargs="*", help="Chemin(s) complet(s) de fichier(s) à surveiller (mode fichier)")
+    mx = parser_setup.add_mutually_exclusive_group(required=True)
+    mx.add_argument("--all", action="store_true", help="Cibler un dossier : surveiller tous les fichiers (non récursif)")
+    mx.add_argument("--file", action="store_true", help="Cibler un fichier : chemin complet obligatoire")
 
     parser_add = subparsers.add_parser("add", help="Ajouter un fichier à surveiller")
     parser_add.add_argument("filename", help="Nom du fichier à ajouter")
@@ -997,7 +1125,14 @@ def main():
 
     # Router vers la fonction appropriée selon la commande
     if args.command == "setup":
-        setup_watch(args.directory, args.filenames)
+        if args.all:
+            if not args.directory:
+                raise SystemExit("Erreur: fournissez un dossier. Exemple: setup /tmp/test --all")
+            setup_watch_all(args.directory)
+        elif args.file:
+            if len(args.filenames) != 1:
+                raise SystemExit("Erreur: fournissez exactement 1 chemin de fichier. Exemple: setup --file /home/user/test.txt")
+            setup_watch_file(args.filenames[0])
     elif args.command == "add":
         add_file(args.filename)
     elif args.command == "rm":
