@@ -437,11 +437,22 @@
       color: var(--text); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-all;
     }
     .control-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .control-chmod-monitor-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+      min-width: 0;
     }
     .control-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+      min-width: 0;
     }
     .control-card h3 {
       font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
@@ -483,13 +494,16 @@
     .chmod-octal-row { flex-wrap: wrap; }
     .chmod-matrix {
       display: grid;
-      grid-template-columns: minmax(100px, 1fr) repeat(3, minmax(72px, auto));
-      gap: 6px 10px;
+      grid-template-columns: minmax(0, 1.1fr) repeat(3, minmax(0, 1fr));
+      gap: 8px 12px;
       align-items: center;
       padding: 10px 12px;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 8px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
     .chmod-matrix-head {
       font-size: 10px; text-transform: uppercase; letter-spacing: .55px;
@@ -514,10 +528,15 @@
       font-size: 11.5px; color: #94a3b8;
     }
 
+    @media (max-width: 1050px) {
+      .control-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     @media (max-width: 700px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .log-entry  { grid-template-columns: 1fr; }
       .log-cell   { border-right: none; padding: 4px 11px; }
+      .control-grid { grid-template-columns: 1fr; }
+      .control-chmod-monitor-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -589,7 +608,7 @@
       <div id="control-feedback"></div>
       <div class="control-status-card">
         <div class="control-row" style="justify-content:space-between;align-items:center;">
-          <h2 style="margin:0;">Configuration actuelle (équivalent menu 6)</h2>
+          <h2 style="margin:0;">Configuration actuelle</h2>
           <button type="button" class="btn-control primary" onclick="refreshControlStatus()">Actualiser</button>
         </div>
         <pre id="control-status-json">Chargement…</pre>
@@ -597,36 +616,37 @@
       <div class="control-grid">
         <div class="control-card">
           <h3><span class="num">1</span>Cibler un dossier (tous les fichiers)</h3>
-          <p class="control-hint">Surveille tous les fichiers du dossier (non récursif), comme l’option 1 du menu terminal.</p>
+          <p class="control-hint">Surveille tous les fichiers du dossier (non récursif).</p>
           <input class="control-input mono" id="ctl-setup-all-dir" type="text" placeholder="/chemin/vers/dossier" />
           <button type="button" class="btn-control primary" onclick="ctlSetupAll()">Enregistrer</button>
         </div>
         <div class="control-card">
           <h3><span class="num">2</span>Cibler un fichier (chemin complet)</h3>
-          <p class="control-hint">Chemin absolu obligatoire — équivalent menu 2.</p>
+          <p class="control-hint">Chemin absolu obligatoire.</p>
           <input class="control-input mono" id="ctl-setup-file-path" type="text" placeholder="/home/user/fichier.txt" />
           <button type="button" class="btn-control primary" onclick="ctlSetupFile()">Enregistrer</button>
         </div>
         <div class="control-card">
           <h3><span class="num">3</span>Ajouter un fichier (mode liste ciblée)</h3>
-          <p class="control-hint">Nom du fichier seul (dans le dossier déjà ciblé). Équivalent menu 3.</p>
+          <p class="control-hint">Nom du fichier seul (dans le dossier déjà ciblé).</p>
           <input class="control-input mono" id="ctl-add-filename" type="text" placeholder="ex. notes.txt" />
           <button type="button" class="btn-control primary" onclick="ctlAddFile()">Ajouter</button>
         </div>
         <div class="control-card">
           <h3><span class="num">4</span>Retirer un fichier de la liste</h3>
-          <p class="control-hint">Équivalent menu 4.</p>
+          <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
           <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
           <button type="button" class="btn-control" onclick="ctlRemoveFile()">Retirer</button>
         </div>
         <div class="control-card">
           <h3><span class="num">5</span>Supprimer toute la configuration</h3>
-          <p class="control-hint">Réinitialise la surveillance — équivalent menu 5.</p>
+          <p class="control-hint">Réinitialise complètement la surveillance.</p>
           <button type="button" class="btn-control danger" onclick="ctlRemoveWatch()">Supprimer la configuration</button>
         </div>
-        <div class="control-card">
+        <div class="control-chmod-monitor-row">
+        <div class="control-card control-card--chmod">
           <h3><span class="num">7</span>Modifier les permissions (chmod)</h3>
-          <p class="control-hint">Équivalent menu 7. Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme.</p>
+          <p class="control-hint">Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme.</p>
           <select class="control-select mono" id="ctl-chmod-select"><option value="">— Fichier —</option></select>
           <div class="chmod-matrix-wrap">
             <div class="chmod-octal-row control-row">
@@ -655,14 +675,15 @@
           </div>
           <button type="button" class="btn-control warn" onclick="ctlChmod()">Appliquer chmod</button>
         </div>
-        <div class="control-card">
+        <div class="control-card control-card--monitor">
           <h3><span class="num">8</span>Lancer la surveillance (terminal intégré)</h3>
-          <p class="control-hint">Démarre un thread <code>start_monitor</code> comme le menu 8. Si la surveillance tourne déjà (ex. lancement avec le panel), les alertes peuvent être dupliquées.</p>
+          <p class="control-hint">Démarre un thread <code>start_monitor</code>. Si la surveillance tourne déjà (ex. lancement avec le panel), les alertes peuvent être dupliquées.</p>
           <div class="control-row">
             <label class="control-hint" for="ctl-monitor-interval">Intervalle (s)</label>
             <input class="control-input mono" id="ctl-monitor-interval" type="number" min="1" max="3600" value="1" style="max-width:88px;" />
           </div>
           <button type="button" class="btn-control primary" onclick="ctlStartMonitor()">Lancer la surveillance</button>
+        </div>
         </div>
       </div>
     </div>
@@ -1035,7 +1056,7 @@ async function testDiscord() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAlertModal(); closeDiscordModal(); } });
 
 /* ─────────────────────────────────────────────────────────────
-   Onglet Surveillance — même actions que le menu terminal (1–8)
+   Onglet Surveillance & configuration (API /api/control)
    ───────────────────────────────────────────────────────────── */
 function switchMainTab(which) {
   const logs = document.getElementById('panel-logs');
