@@ -6,8 +6,8 @@ Utilise Flask + Server-Sent Events (SSE) pour les notifications live.
 
 import os
 import json
-import ast
 import time
+from datetime import datetime
 import queue
 import threading
 import urllib.error
@@ -65,6 +65,7 @@ _subscribers: list[queue.Queue] = []
 _subscribers_lock = threading.Lock()
 _tail_thread_lock = threading.Lock()
 _tail_thread_started = False
+_discord_periodic_started = False
 _control_lock = threading.Lock()
 
 
@@ -92,132 +93,13 @@ def _truncate_discord_text(text: str, limit: int) -> str:
     return text[: max(0, limit - 3)].rstrip() + "..."
 
 
-def _describe_octal_mode(mode: str) -> str:
-    """Traduit un mode octal Unix en description lisible en francais."""
-    raw = str(mode).strip()
-    digits = raw.replace("0o", "").replace("0O", "")
-    if not digits.isdigit() or len(digits) < 3:
-        return raw
-
-    rights_map = {
-        0: "aucun droit",
-        1: "execution uniquement",
-        2: "droit d'ecriture",
-        3: "droits d'ecriture et d'execution",
-        4: "droit de lecture",
-        5: "droits de lecture et d'execution",
-        6: "droits de lecture et d'ecriture",
-        7: "tous les droits standards : lecture, ecriture et execution",
-    }
-
-    perm_digits = digits[-3:]
-    owner = rights_map.get(int(perm_digits[0]), raw)
-    group = rights_map.get(int(perm_digits[1]), raw)
-    others = rights_map.get(int(perm_digits[2]), raw)
-
-    parts = [
-        f"proprietaire : {owner}",
-        f"groupe : {group}",
-        f"autres : {others}",
-    ]
-
-    if len(digits) == 4:
-        special = int(digits[0])
-        special_parts = []
-        if special & 4:
-            special_parts.append("setuid actif")
-        if special & 2:
-            special_parts.append("setgid actif")
-        if special & 1:
-            special_parts.append("sticky bit actif")
-        if special_parts:
-            parts.append(", ".join(special_parts))
-
-    return f"{raw} ({' ; '.join(parts)})"
+# Discord : un message au plus toutes les 3 h, sans lien avec les alertes fichiers (SSE / journal).
+DISCORD_PERIODIC_INTERVAL_SEC = 3 * 60 * 60
 
 
-def _translate_detail_for_discord(detail: str) -> str:
-    """Rend les lignes de detail plus lisibles dans Discord."""
-    text = str(detail).lstrip()
-    if text.startswith("- "):
-        text = text[2:].strip()
-
-    if text.startswith("Permissions modifiees : ") or text.startswith("Permissions modifiées : "):
-        _, _, values = text.partition(": ")
-        old_mode, _, new_mode = values.partition(" -> ")
-        if old_mode and new_mode:
-            return (
-                "Permissions modifiees : "
-                f"{_describe_octal_mode(old_mode)} -> {_describe_octal_mode(new_mode)}"
-            )
-
-    if text.startswith(" - "):
-        text = text[3:]
-
-    if text.lower().startswith("ancien etat :") or text.lower().startswith("ancien état :") \
-       or text.lower().startswith("nouvel etat :") or text.lower().startswith("nouvel état :"):
-        label, _, payload = text.partition(": ")
-        try:
-            state = ast.literal_eval(payload)
-        except Exception:
-            return text
-
-        if isinstance(state, dict) and "mode" in state:
-            state = dict(state)
-            state["mode"] = _describe_octal_mode(state["mode"])
-            return f"{label}: {state}"
-
-    return text
-
-
-_discord_webhook_warn_at: float = 0.0
-DISCORD_WEBHOOK_WARN_COOLDOWN_SEC = 20.0
-
-
-def send_discord_alert(entry: dict) -> None:
-    """Envoie une notification Discord pour une alerte groupee."""
-    global _discord_webhook_warn_at
-
-    cfg = load_discord_config()
-    webhook_url = cfg.get("webhook_url", "").strip()
-    panel_url   = cfg.get("panel_url", DEFAULT_PANEL_URL).strip()
-
-    if not webhook_url:
-        now = time.monotonic()
-        if now - _discord_webhook_warn_at >= DISCORD_WEBHOOK_WARN_COOLDOWN_SEC:
-            _discord_webhook_warn_at = now
-            app.logger.warning("Discord non configure: webhook absent")
-        return
-
-    msg       = entry.get("message", "")
-    details   = entry.get("details", [])
-    timestamp = entry.get("timestamp", "")
-
-    path_part = msg.split(":")[-1].strip() if ":" in msg else ""
-    filename  = os.path.basename(path_part) if path_part else "fichier"
-
-    safe_msg = _truncate_discord_text(msg, 800)
-    desc_lines = [f"```{safe_msg}```"]
-    for detail in details:
-        desc_lines.append(f"- {_truncate_discord_text(_translate_detail_for_discord(detail), 900)}")
-    desc_lines.append(f"\n**[Voir le panel de surveillance]({panel_url})**")
-
-    payload = {
-        "embeds": [{
-            "title": _truncate_discord_text(
-                f"Nouvelle alerte : modification detectee sur `{filename}`",
-                250,
-            ),
-            "description": _truncate_discord_text("\n".join(desc_lines), 4000),
-            "color": 0xDC2626,
-            "footer": {
-                "text": _truncate_discord_text(f"File System Monitor - {timestamp}", 200)
-            },
-        }]
-    }
-
+def _post_discord_webhook(webhook_url: str, payload: dict) -> None:
     data = json.dumps(payload).encode("utf-8")
-    req  = urllib.request.Request(
+    req = urllib.request.Request(
         webhook_url,
         data=data,
         headers={
@@ -240,6 +122,44 @@ def send_discord_alert(entry: dict) -> None:
         app.logger.error("Discord webhook refuse la requete (%s): %s", exc.code, body)
     except Exception as exc:
         app.logger.exception("Echec envoi Discord: %s", exc)
+
+
+def send_discord_periodic_heartbeat() -> None:
+    """Message periodique (lien panel uniquement), independant des modifications surveillees."""
+    cfg = load_discord_config()
+    webhook_url = cfg.get("webhook_url", "").strip()
+    panel_url = cfg.get("panel_url", DEFAULT_PANEL_URL).strip()
+    if not webhook_url:
+        return
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    desc = (
+        "Rappel automatique : le service de surveillance est en cours d'execution.\n"
+        "Les modifications de fichiers ne declenchent pas ce message.\n\n"
+        f"**[Ouvrir le panel]({panel_url})**"
+    )
+    payload = {
+        "embeds": [
+            {
+                "title": _truncate_discord_text("Surveillance fichiers — rappel", 250),
+                "description": _truncate_discord_text(desc, 4000),
+                "color": 0x7C3AED,
+                "footer": {
+                    "text": _truncate_discord_text(f"File System Monitor — {now_str}", 200)
+                },
+            }
+        ]
+    }
+    _post_discord_webhook(webhook_url, payload)
+
+
+def discord_periodic_loop() -> None:
+    while True:
+        time.sleep(DISCORD_PERIODIC_INTERVAL_SEC)
+        try:
+            send_discord_periodic_heartbeat()
+        except Exception:
+            pass
 
 
 # ── Log parsing & grouping ────────────────────────────────────────────────────
@@ -353,7 +273,7 @@ def _broadcast(data: str) -> None:
 def tail_log() -> None:
     """
     Thread daemon : surveille monitor.log, groupe les alertes,
-    diffuse en SSE et notifie Discord.
+    diffuse en SSE (Discord : fil separe, message toutes les 3 h).
     """
     last_size = 0
 
@@ -389,12 +309,6 @@ def tail_log() -> None:
 
                     for entry in _dedupe_alert_broadcasts(group_logs(parsed)):
                         _broadcast(json.dumps(entry))
-                        if "[ALERTE]" in entry.get("message", "") or "[CRITIQUE]" in entry.get(
-                            "message", ""
-                        ):
-                            threading.Thread(
-                                target=send_discord_alert, args=(entry,), daemon=True
-                            ).start()
 
                 elif current_size < last_size:
                     last_size = 0
@@ -406,16 +320,18 @@ def tail_log() -> None:
 
 
 def ensure_tail_thread_started() -> None:
-    """Demarre le thread de surveillance des logs une seule fois."""
-    global _tail_thread_started
-    if _tail_thread_started:
+    """Demarre le thread de surveillance des logs et le rappel Discord periodique."""
+    global _tail_thread_started, _discord_periodic_started
+    if _tail_thread_started and _discord_periodic_started:
         return
 
     with _tail_thread_lock:
-        if _tail_thread_started:
-            return
-        threading.Thread(target=tail_log, daemon=True).start()
-        _tail_thread_started = True
+        if not _tail_thread_started:
+            threading.Thread(target=tail_log, daemon=True).start()
+            _tail_thread_started = True
+        if not _discord_periodic_started:
+            threading.Thread(target=discord_periodic_loop, daemon=True).start()
+            _discord_periodic_started = True
 
 
 # ── Authentification ───────────────────────────────────────────────────────────

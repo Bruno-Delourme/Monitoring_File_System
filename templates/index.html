@@ -565,7 +565,7 @@
     Surveillance Fichiers
     <em>journal &amp; configuration</em>
   </div>
-  <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Configurer les notifications Discord">⚙ Discord</button>
+  <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Webhook Discord : rappel toutes les 3 h (sans alertes fichiers)">⚙ Discord</button>
   <a class="header-btn header-btn-logout" href="/logout" title="Se déconnecter">Déconnexion</a>
   <div id="status-pill" class="connecting">
     <div class="dot"></div>
@@ -733,7 +733,7 @@
       <div class="form-group">
         <label class="form-label">URL du Webhook Discord</label>
         <input class="form-input" id="discord-webhook" type="text" placeholder="https://discord.com/api/webhooks/..." />
-        <span class="form-hint">Créez un webhook dans les paramètres de votre salon Discord → Intégrations</span>
+        <span class="form-hint">Créez un webhook dans les paramètres de votre salon Discord → Intégrations. Le serveur envoie au plus un message toutes les 3 heures (rappel + lien vers le panel), indépendamment des alertes et du journal.</span>
       </div>
       <div class="form-group">
         <label class="form-label">URL du panel (lien dans le message Discord)</label>
