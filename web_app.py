@@ -7,6 +7,7 @@ Utilise Flask + Server-Sent Events (SSE) pour les notifications live.
 import os
 import json
 import logging
+import re
 import time
 from datetime import datetime
 import queue
@@ -57,27 +58,36 @@ app.secret_key = _get_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
-# Werkzeug : ne pas journaliser chaque GET /api/control/status 200 (poll onglet config) — au plus une ligne / h.
-_werkzeug_status_200_last_log: float = 0.0
+# Werkzeug : masquer les lignes « access log » (GET /static, favicon, poll, etc.) dans la console
+# et dans monitor.log (le logger werkzeug se propage vers la racine avec basicConfig du projet).
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+# Après ] " : éventuels codes couleur puis méthode HTTP (ligne type serveur de dev).
+_WERKZEUG_ACCESS_LINE_RE = re.compile(
+    r'\] "\s*(?:\x1b\[[0-9;]*m\s*)*(?:GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE)\s+'
+)
 
 
-class _WerkzeugThrottleControlStatus200Filter(logging.Filter):
+def _is_werkzeug_http_access_noise(message: str) -> bool:
+    if not message or not message.strip():
+        return False
+    plain = _ANSI_ESCAPE_RE.sub("", message)
+    return bool(_WERKZEUG_ACCESS_LINE_RE.search(plain))
+
+
+class _WerkzeugHideAccessLogFilter(logging.Filter):
+    """Garde Running on, WARNING dev server, CTRL+C ; supprime le bruit des requêtes HTTP."""
+
     def filter(self, record: logging.LogRecord) -> bool:
-        global _werkzeug_status_200_last_log
         try:
             msg = record.getMessage()
         except Exception:
             return True
-        if "GET /api/control/status" not in msg or " 200" not in msg:
-            return True
-        now = time.time()
-        if now - _werkzeug_status_200_last_log < 3600.0:
+        if _is_werkzeug_http_access_noise(msg):
             return False
-        _werkzeug_status_200_last_log = now
         return True
 
 
-logging.getLogger("werkzeug").addFilter(_WerkzeugThrottleControlStatus200Filter())
+logging.getLogger("werkzeug").addFilter(_WerkzeugHideAccessLogFilter())
 
 LOG_FILE          = os.path.join(_BASE_DIR, "logs", "monitor.log")
 DISCORD_CFG_FILE  = os.path.join(_BASE_DIR, "discord_config.json")
@@ -217,7 +227,8 @@ def parse_log_line(line: str) -> dict | None:
         2024-01-15 10:30:45,123 - LEVEL - message
 
     Returns:
-        dict avec timestamp, level, message, raw, is_detail — ou None si vide.
+        dict avec timestamp, level, message, raw, is_detail — None si vide ou
+        ligne de requête HTTP Werkzeug (bruit dans le journal).
     """
     line = line.strip()
     if not line:
@@ -226,14 +237,19 @@ def parse_log_line(line: str) -> dict | None:
     parts = line.split(" - ", 2)
     if len(parts) == 3:
         timestamp, level, raw_msg = parts
+        msg_body = raw_msg.strip()
+        if _is_werkzeug_http_access_noise(msg_body):
+            return None
         is_detail = raw_msg.startswith(" - ") or raw_msg.startswith("  - ")
         return {
             "timestamp": timestamp.strip(),
             "level":     level.strip().upper(),
-            "message":   raw_msg.strip(),
+            "message":   msg_body,
             "raw":       line,
             "is_detail": is_detail,
         }
+    if _is_werkzeug_http_access_noise(line):
+        return None
     return {"timestamp": "", "level": "INFO", "message": line, "raw": line, "is_detail": False}
 
 
