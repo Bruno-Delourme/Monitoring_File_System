@@ -937,8 +937,9 @@ class MonitorHandler(FileSystemEventHandler):
         # Si des changements ont été détectés, alerter et mettre à jour la config
         if changes:
             is_critical = bool(privilege_reason)
+            tag = "[CRITIQUE]" if is_critical else "[ALERTE]"
             log_and_print(
-                f"[{'CRITIQUE' if is_critical else 'ALERTE'}] Modification détectée sur : {path}",
+                f"{tag} Modification détectée sur : {path}",
                 level="error" if is_critical else "warning",
                 color=COLOR_RED
             )

@@ -95,6 +95,9 @@ def _truncate_discord_text(text: str, limit: int) -> str:
 
 # Discord : un message au plus toutes les 3 h, sans lien avec les alertes fichiers (SSE / journal).
 DISCORD_PERIODIC_INTERVAL_SEC = 3 * 60 * 60
+# Avertissement « webhook absent » : au plus une fois / 3 h, uniquement depuis le thread periodique (pas les requetes HTTP).
+DISCORD_MISSING_WEBHOOK_LOG_INTERVAL_SEC = DISCORD_PERIODIC_INTERVAL_SEC
+_discord_missing_webhook_last_log: float = 0.0
 
 
 def _post_discord_webhook(webhook_url: str, payload: dict) -> None:
@@ -153,11 +156,32 @@ def send_discord_periodic_heartbeat() -> None:
     _post_discord_webhook(webhook_url, payload)
 
 
+def _log_discord_webhook_missing_if_due() -> None:
+    """Journalise l'absence de webhook au plus une fois toutes les 3 h (evite le bruit sur chaque action)."""
+    global _discord_missing_webhook_last_log
+
+    cfg = load_discord_config()
+    if cfg.get("webhook_url", "").strip():
+        return
+    now = time.monotonic()
+    if _discord_missing_webhook_last_log > 0 and (
+        now - _discord_missing_webhook_last_log
+    ) < DISCORD_MISSING_WEBHOOK_LOG_INTERVAL_SEC:
+        return
+    _discord_missing_webhook_last_log = now
+    app.logger.warning("Discord non configure: webhook absent")
+
+
 def discord_periodic_loop() -> None:
+    try:
+        _log_discord_webhook_missing_if_due()
+    except Exception:
+        pass
     while True:
         time.sleep(DISCORD_PERIODIC_INTERVAL_SEC)
         try:
             send_discord_periodic_heartbeat()
+            _log_discord_webhook_missing_if_due()
         except Exception:
             pass
 

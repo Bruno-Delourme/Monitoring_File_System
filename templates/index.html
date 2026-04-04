@@ -917,11 +917,31 @@ function splitPathForAlert(fullPath) {
   return { dir: p.slice(0, sep), file: p.slice(sep + 1) };
 }
 
+/** Insère un espace après [TAG] si collé à « Modification » (anciens journaux). */
+function normalizeAlertLeadSpacing(msg) {
+  return String(msg).replace(/(\[[^\]]+\])(Modification détectée)/gi, '$1 $2');
+}
+
+/**
+ * Texte affiché dans la grille du journal : alertes fichier = tag + phrase + nom de fichier seul (détails au clic).
+ */
+function formatMessageForLogRow(log) {
+  let msg = normalizeAlertLeadSpacing(log.message || '');
+  const m = msg.match(/^(\[[^\]]+\])\s*Modification détectée sur\s*:\s*(.+)$/i);
+  if (m) {
+    const pathPart = m[2].trim();
+    const { file } = splitPathForAlert(pathPart);
+    const shown = file || pathPart;
+    return `${m[1]} Modification détectée sur : ${shown}`;
+  }
+  return msg;
+}
+
 /**
  * Titre modale : [ALERTE|CRITIQUE] … puis dossier et fichier(s) sans répéter le chemin complet.
  */
 function formatAlertTitleHtml(rawMsg) {
-  const msg = String(rawMsg);
+  const msg = normalizeAlertLeadSpacing(String(rawMsg));
   const m = msg.match(/^(\[[^\]]+\])\s*Modification détectée sur\s*:\s*(.+)$/i);
   if (!m) return highlight(msg);
 
@@ -1470,6 +1490,11 @@ function normalizeUiLevel(level) {
   return s || 'INFO';
 }
 
+/** Lignes de détail techniques (Permissions, états, brut…) : visibles dans la modale « détails », pas dans la grille. */
+function isLogDetailNoise(l) {
+  return !!(l && l.is_detail);
+}
+
 function buildEntry(log, isNew = false) {
   const hasDetails = log.details && log.details.length > 0;
   const lvl = normalizeUiLevel(log.level);
@@ -1480,7 +1505,7 @@ function buildEntry(log, isNew = false) {
   div.innerHTML = `
     <div class="log-cell log-ts">${log.timestamp || '—'}</div>
     <div class="log-cell log-lvl">${lvl}</div>
-    <div class="log-cell log-msg">${highlight(log.message)}</div>
+    <div class="log-cell log-msg">${highlight(formatMessageForLogRow(log))}</div>
     <div class="log-cell log-expand">${hasDetails ? '▶ détails' : ''}</div>
   `;
   if (hasDetails) div.addEventListener('click', () => openAlertModal(log));
@@ -1511,6 +1536,7 @@ function renderAll() {
   logList.querySelectorAll('.log-entry').forEach(e => e.remove());
 
   const filtered = allLogs.filter(l => {
+    if (isLogDetailNoise(l)) return false;
     const levelOk  = activeFilter === 'ALL' || normalizeUiLevel(l.level) === activeFilter;
     const searchOk = !search
       || (l.raw || '').toLowerCase().includes(search)
@@ -1528,7 +1554,9 @@ function renderAll() {
 
 function appendEntry(log) {
   allLogs.push(log);
-  updateStats(log.level, '+');
+  if (!isLogDetailNoise(log)) {
+    updateStats(log.level, '+');
+  }
 
   const search   = document.getElementById('search').value.toLowerCase();
   const levelOk  = activeFilter === 'ALL' || normalizeUiLevel(log.level) === activeFilter;
@@ -1537,7 +1565,9 @@ function appendEntry(log) {
     || (log.message || '').toLowerCase().includes(search)
     || (log.details || []).join(' ').toLowerCase().includes(search);
 
-  if (levelOk && searchOk) {
+  const showInGrid = !isLogDetailNoise(log) && levelOk && searchOk;
+
+  if (showInGrid) {
     emptyState.style.display = 'none';
     logList.appendChild(buildEntry(log, true));
     logCount.textContent = parseInt(logCount.textContent) + 1;
@@ -1545,12 +1575,14 @@ function appendEntry(log) {
 
   lastUpdate.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR');
 
-  if (autoScroll && !userScrolled) {
-    scrollToBottom();
-  } else {
-    newWhileAway++;
-    scrollBtn.style.display = 'block';
-    scrollBtn.textContent   = `↓ ${newWhileAway} nouveau${newWhileAway > 1 ? 'x' : ''} log${newWhileAway > 1 ? 's' : ''}`;
+  if (showInGrid) {
+    if (autoScroll && !userScrolled) {
+      scrollToBottom();
+    } else {
+      newWhileAway++;
+      scrollBtn.style.display = 'block';
+      scrollBtn.textContent   = `↓ ${newWhileAway} nouveau${newWhileAway > 1 ? 'x' : ''} log${newWhileAway > 1 ? 's' : ''}`;
+    }
   }
 }
 
@@ -1626,6 +1658,7 @@ function toastDedupeKey(log) {
 }
 
 function showToast(log) {
+  if (isLogDetailNoise(log)) return;
   const level = normalizeUiLevel(log.level);
   if (level === 'INFO' && !log.message.includes('[DÉTECTION]') && !log.message.includes('[DETECTION]')) return;
   const tKey = toastDedupeKey(log);
@@ -1646,7 +1679,7 @@ function showToast(log) {
     <div class="toast-icon">${icons[level]||'ℹ️'}</div>
     <div class="toast-body">
       <div class="toast-title">${escHtml(level)} — ${escHtml(log.timestamp||'')}</div>
-      <div class="toast-msg">${escHtml(log.message)}</div>
+      <div class="toast-msg">${escHtml(formatMessageForLogRow(log))}</div>
     </div>
     <div class="toast-close" onclick="event.stopPropagation();this.parentElement.remove()">✕</div>
   `;
