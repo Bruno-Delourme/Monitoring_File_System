@@ -209,6 +209,8 @@
       overflow-x: hidden;
       scrollbar-gutter: stable;
     }
+    /* Même largeur utile et centrage que l’onglet Configuration */
+    #panel-logs,
     #panel-control .control-layout {
       max-width: 1040px;
       width: 100%;
@@ -654,12 +656,34 @@
     .btn-control.danger { border-color: rgba(220, 38, 38, 0.45); color: #fca5a5; }
     .btn-control.danger:hover { background: rgba(220, 38, 38, 0.12); }
     .control-hint { font-size: 12px; color: var(--muted); line-height: 1.45; margin: 0; }
-    #control-feedback { font-size: 14.5px; padding: 10px 12px; border-radius: 6px; display: none; margin-bottom: 4px; }
+    /* Hauteur fixe : l’apparition du message ne décale plus le reste (scroll éventuel dans la bannière) */
+    .control-feedback-slot {
+      flex-shrink: 0;
+      height: 60px;
+      margin-bottom: 4px;
+      box-sizing: border-box;
+    }
+    #control-feedback {
+      font-size: 14.5px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      display: none;
+      margin: 0;
+      box-sizing: border-box;
+    }
     #control-feedback.ok {
-      display: block; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32); color: #86efac;
+      display: block;
+      height: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32); color: #86efac;
     }
     #control-feedback.err {
-      display: block; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.32); color: #fca5a5;
+      display: block;
+      height: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.32); color: #fca5a5;
     }
 
     .chmod-matrix-wrap { display: flex; flex-direction: column; gap: 12px; }
@@ -786,7 +810,9 @@
 
   <div id="panel-control" class="panel-hidden">
     <div class="control-layout">
-      <div id="control-feedback"></div>
+      <div class="control-feedback-slot" aria-live="polite">
+        <div id="control-feedback"></div>
+      </div>
       <div class="control-status-card">
         <div class="control-status-header">
           <h2>Configuration actuelle</h2>
