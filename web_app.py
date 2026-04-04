@@ -301,7 +301,10 @@ def group_logs(parsed_lines: list) -> list:
             i = j
 
         elif _is_detail_line(line):
-            i += 1  # déjà consommée par un groupe précédent
+            # Sinon la ligne serait jetée : arrive souvent en 2e lecture du tail
+            # (détails écrits après l’en-tête [ALERTE]) et disparaît du flux / JSON.
+            groups.append(line)
+            i += 1
 
         else:
             groups.append(line)
@@ -362,9 +365,10 @@ def tail_log() -> None:
                     with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
                         f.seek(last_size)
                         new_lines = f.readlines()
-                    last_size = current_size
 
+                    chunk_end = current_size
                     parsed = [p for line in new_lines if (p := parse_log_line(line))]
+                    read_end = chunk_end
 
                     # Si une alerte est détectée, attendre que toutes les lignes
                     # de détail soient écrites avant de grouper
@@ -374,12 +378,14 @@ def tail_log() -> None:
                     ):
                         time.sleep(0.2)
                         current_size2 = os.path.getsize(LOG_FILE)
-                        if current_size2 > last_size:
+                        if current_size2 > read_end:
                             with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
-                                f.seek(last_size)
+                                f.seek(read_end)
                                 more = f.readlines()
-                            last_size = current_size2
+                            read_end = current_size2
                             parsed += [p for line in more if (p := parse_log_line(line))]
+
+                    last_size = read_end
 
                     for entry in _dedupe_alert_broadcasts(group_logs(parsed)):
                         _broadcast(json.dumps(entry))

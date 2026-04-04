@@ -121,7 +121,18 @@
     }
 
     /* ── Main ────────────────────────────────────────────────── */
-    main { flex: 1; padding: 22px 26px; display: flex; flex-direction: column; gap: 18px; max-width: 1400px; width: 100%; margin: 0 auto; }
+    main {
+      flex: 1; min-height: 0; padding: 22px 26px; display: flex; flex-direction: column;
+      gap: 18px; max-width: 1400px; width: 100%; margin: 0 auto;
+    }
+    #panel-logs {
+      flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px;
+    }
+    #panel-control {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding-right: 4px;
+      scrollbar-gutter: stable;
+    }
 
     /* ── Stats ───────────────────────────────────────────────── */
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -164,7 +175,8 @@
     /* ── Log panel ───────────────────────────────────────────── */
     .log-panel {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden; flex: 1; display: flex; flex-direction: column;
+      border-radius: var(--radius); overflow: hidden; flex: 1; min-height: 0;
+      display: flex; flex-direction: column;
     }
     .log-panel-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -172,7 +184,10 @@
       font-size: 11.5px; color: var(--muted);
     }
     #log-count { font-weight: 700; color: var(--text); }
-    #log-list { flex: 1; overflow-y: auto; max-height: calc(100vh - 330px); min-height: 300px; }
+    #log-list {
+      flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+      scrollbar-gutter: stable;
+    }
 
     /* ── Log entry ───────────────────────────────────────────── */
     .log-entry {
@@ -209,6 +224,7 @@
     .level-INFO    .log-lvl { color: var(--purple); }
     .level-WARNING .log-lvl { color: var(--orange); }
     .level-ERROR   .log-lvl { color: var(--red); }
+    .level-CRITICAL .log-lvl { color: var(--red); }
 
     .kw-alerte { color: var(--red);      font-weight: 700; }
     .kw-detect { color: var(--green-s);  font-weight: 700; }
@@ -1325,15 +1341,24 @@ async function ctlStartMonitor() {
 /* ─────────────────────────────────────────────────────────────
    Build a log entry DOM element
    ───────────────────────────────────────────────────────────── */
+/** Niveaux cohérents avec les filtres (WARN → WARNING, CRITICAL → ERROR). */
+function normalizeUiLevel(level) {
+  const s = String(level ?? '').trim().toUpperCase();
+  if (s === 'WARN') return 'WARNING';
+  if (s === 'CRITICAL') return 'ERROR';
+  return s || 'INFO';
+}
+
 function buildEntry(log, isNew = false) {
   const hasDetails = log.details && log.details.length > 0;
+  const lvl = normalizeUiLevel(log.level);
   const div = document.createElement('div');
-  div.className = `log-entry level-${log.level}${isNew ? ' new' : ''}${hasDetails ? ' has-details' : ''}`;
-  div.dataset.level = log.level;
+  div.className = `log-entry level-${lvl}${isNew ? ' new' : ''}${hasDetails ? ' has-details' : ''}`;
+  div.dataset.level = lvl;
   div.dataset.raw   = (log.raw || '').toLowerCase();
   div.innerHTML = `
     <div class="log-cell log-ts">${log.timestamp || '—'}</div>
-    <div class="log-cell log-lvl">${log.level}</div>
+    <div class="log-cell log-lvl">${lvl}</div>
     <div class="log-cell log-msg">${highlight(log.message)}</div>
     <div class="log-cell log-expand">${hasDetails ? '▶ détails' : ''}</div>
   `;
@@ -1365,9 +1390,10 @@ function renderAll() {
   logList.querySelectorAll('.log-entry').forEach(e => e.remove());
 
   const filtered = allLogs.filter(l => {
-    const levelOk  = activeFilter === 'ALL' || l.level === activeFilter;
+    const levelOk  = activeFilter === 'ALL' || normalizeUiLevel(l.level) === activeFilter;
     const searchOk = !search
       || (l.raw || '').toLowerCase().includes(search)
+      || (l.message || '').toLowerCase().includes(search)
       || (l.details || []).join(' ').toLowerCase().includes(search);
     return levelOk && searchOk;
   });
@@ -1384,9 +1410,10 @@ function appendEntry(log) {
   updateStats(log.level, '+');
 
   const search   = document.getElementById('search').value.toLowerCase();
-  const levelOk  = activeFilter === 'ALL' || log.level === activeFilter;
+  const levelOk  = activeFilter === 'ALL' || normalizeUiLevel(log.level) === activeFilter;
   const searchOk = !search
     || (log.raw || '').toLowerCase().includes(search)
+    || (log.message || '').toLowerCase().includes(search)
     || (log.details || []).join(' ').toLowerCase().includes(search);
 
   if (levelOk && searchOk) {
@@ -1423,10 +1450,11 @@ function setStats(c) {
 }
 function updateStats(level, op) {
   const inc = op === '+' ? 1 : -1;
+  const lvl = normalizeUiLevel(level);
   statEls.TOTAL.textContent = Math.max(0, +statEls.TOTAL.textContent + inc);
-  if (level === 'INFO')    statEls.INFO.textContent    = Math.max(0, +statEls.INFO.textContent    + inc);
-  if (level === 'WARNING') statEls.WARNING.textContent = Math.max(0, +statEls.WARNING.textContent + inc);
-  if (level === 'ERROR')   statEls.ERROR.textContent   = Math.max(0, +statEls.ERROR.textContent   + inc);
+  if (lvl === 'INFO')    statEls.INFO.textContent    = Math.max(0, +statEls.INFO.textContent    + inc);
+  if (lvl === 'WARNING') statEls.WARNING.textContent = Math.max(0, +statEls.WARNING.textContent + inc);
+  if (lvl === 'ERROR')   statEls.ERROR.textContent   = Math.max(0, +statEls.ERROR.textContent   + inc);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1477,7 +1505,7 @@ function toastDedupeKey(log) {
 }
 
 function showToast(log) {
-  const level = log.level;
+  const level = normalizeUiLevel(log.level);
   if (level === 'INFO' && !log.message.includes('[DÉTECTION]') && !log.message.includes('[DETECTION]')) return;
   const tKey = toastDedupeKey(log);
   const now = Date.now();
