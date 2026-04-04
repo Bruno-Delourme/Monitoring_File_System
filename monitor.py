@@ -408,7 +408,7 @@ def setup_watch(watch_directory, filenames):
             level="error",
             color=COLOR_RED
         )
-        return
+        return False
 
     # Enregistrer la configuration de surveillance
     config["watch_directory"] = watch_directory
@@ -443,6 +443,7 @@ def setup_watch(watch_directory, filenames):
             )
     if changed:
         save_config(config)
+    return True
 
 
 def setup_watch_file(file_path):
@@ -451,7 +452,7 @@ def setup_watch_file(file_path):
     """
     if not file_path:
         log_and_print("[ERREUR] Chemin du fichier manquant.", level="error", color=COLOR_RED)
-        return
+        return False
 
     file_path = normalize_path(file_path)
     if not os.path.isabs(file_path):
@@ -460,7 +461,7 @@ def setup_watch_file(file_path):
             level="error",
             color=COLOR_RED,
         )
-        return
+        return False
 
     watch_directory = normalize_path(os.path.dirname(file_path))
     filename = os.path.basename(file_path)
@@ -470,12 +471,14 @@ def setup_watch_file(file_path):
             level="error",
             color=COLOR_RED,
         )
-        return
+        return False
 
-    setup_watch(watch_directory, [filename])
+    if not setup_watch(watch_directory, [filename]):
+        return False
     config = load_config()
     config["single_file_target"] = True
     save_config(config)
+    return True
 
 
 def setup_watch_all(watch_directory):
@@ -492,7 +495,7 @@ def setup_watch_all(watch_directory):
             level="error",
             color=COLOR_RED,
         )
-        return
+        return False
 
     config["watch_directory"] = watch_directory
     config["watch_all"] = True
@@ -516,22 +519,27 @@ def setup_watch_all(watch_directory):
         meta_map[os.path.basename(p)] = get_file_metadata(p)
     config["file_metadata"] = meta_map
     save_config(config)
+    return True
 
 
 def add_file(filename):
     """Ajoute un fichier à la liste surveillée (même dossier)."""
+    if not (filename or "").strip():
+        log_and_print("[ERREUR] Nom de fichier manquant.", level="error", color=COLOR_RED)
+        return False
+    filename = filename.strip()
     config = load_config()
     watch_dir = config.get("watch_directory")
     if not watch_dir:
         log_and_print("[ERREUR] Aucune surveillance configurée.", level="error", color=COLOR_RED)
-        return
+        return False
     if config.get("watch_all"):
         # Basculer en mode "liste ciblée" si on veut cibler un fichier
         config["watch_all"] = False
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     if filename in filenames:
         log_and_print(f"[INFO] Déjà surveillé : {filename}", color=COLOR_YELLOW)
-        return
+        return True
     filenames.append(filename)
     config["filenames"] = filenames
     if len(filenames) > 1:
@@ -540,15 +548,20 @@ def add_file(filename):
     config.setdefault("file_metadata", {})
     save_config(config)
     log_and_print(f"[+] Ajouté à la surveillance : {filename}", color=COLOR_GREEN)
+    return True
 
 
 def remove_file(filename):
     """Supprime un fichier de la liste surveillée (même dossier)."""
+    if not (filename or "").strip():
+        log_and_print("[ERREUR] Nom de fichier manquant.", level="error", color=COLOR_RED)
+        return False
+    filename = filename.strip()
     config = load_config()
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     if filename not in filenames:
         log_and_print(f"[INFO] Non surveillé : {filename}", color=COLOR_YELLOW)
-        return
+        return True
     filenames = [f for f in filenames if f != filename]
     config["filenames"] = filenames
     if len(filenames) != 1:
@@ -560,6 +573,7 @@ def remove_file(filename):
         config["file_metadata"] = meta
     save_config(config)
     log_and_print(f"[-] Retiré de la surveillance : {filename}", color=COLOR_GREEN)
+    return True
 
 
 def remove_watch():
@@ -572,7 +586,7 @@ def remove_watch():
     # Vérifier qu'une configuration existe
     if "watch_directory" not in config:
         log_and_print("[INFO] Aucune surveillance configurée.", color=COLOR_YELLOW)
-        return
+        return True
 
     # Sauvegarder les informations pour le message de confirmation
     watch_dir = config.get("watch_directory")
@@ -585,6 +599,7 @@ def remove_watch():
         f"[-] Surveillance supprimée : dossier '{watch_dir}' / fichier '{filename}'",
         color=COLOR_GREEN
     )
+    return True
 
 
 def _print_file_state_block(name, file_path):
@@ -666,6 +681,74 @@ def list_watch():
         _print_file_state_block(name, file_path)
 
 
+def get_watch_snapshot():
+    """
+    État de la configuration et des fichiers pour l'API web (JSON).
+    Reprend la logique de list_watch sans affichage console.
+    """
+    config = load_config()
+    if "watch_directory" not in config:
+        return {"configured": False}
+
+    watch_dir = normalize_path(config.get("watch_directory"))
+    watch_all = bool(config.get("watch_all", False))
+    filenames = [f for f in _ensure_list(config.get("filenames") or config.get("filename")) if f]
+    single_file_target = bool(config.get("single_file_target", False))
+    single_file_mode = (not watch_all) and len(filenames) == 1
+
+    if watch_all:
+        mode_key = "watch_all"
+        mode_description = "Dossier complet — tous les fichiers (non récursif)"
+    elif single_file_target or single_file_mode:
+        mode_key = "single_file"
+        mode_description = (
+            "Fichier unique (chemin complet)"
+            if single_file_target
+            else "Un seul fichier ciblé dans la liste"
+        )
+    else:
+        mode_key = "targeted_list"
+        mode_description = f"Fichiers ciblés ({len(filenames)})"
+
+    def _file_entry(name, file_path):
+        row = {"name": name, "path": file_path}
+        if not os.path.exists(file_path):
+            row["status"] = "absent"
+            row["exists"] = False
+            return row
+        meta = get_file_metadata(file_path)
+        row["exists"] = bool(meta.get("exists"))
+        row["status"] = "present" if meta.get("exists") else "unknown"
+        row["mode"] = meta.get("mode")
+        row["permissions_text"] = (
+            _describe_permissions(meta.get("mode")) if meta.get("mode") is not None else None
+        )
+        row["uid"] = meta.get("uid")
+        row["gid"] = meta.get("gid")
+        row["mtime"] = meta.get("mtime")
+        return row
+
+    files = []
+    if watch_all:
+        for file_path in get_monitored_file_paths():
+            files.append(_file_entry(os.path.basename(file_path), file_path))
+    else:
+        for name in filenames:
+            fp = normalize_path(os.path.join(watch_dir, name))
+            files.append(_file_entry(name, fp))
+
+    return {
+        "configured": True,
+        "watch_directory": watch_dir,
+        "watch_all": watch_all,
+        "filenames": filenames,
+        "single_file_target": single_file_target,
+        "mode_key": mode_key,
+        "mode_description": mode_description,
+        "files": files,
+    }
+
+
 def chmod_file(path, mode_str):
     """
     Modifie les permissions d'un fichier en utilisant la notation octale.
@@ -679,7 +762,7 @@ def chmod_file(path, mode_str):
     # Vérifier que le fichier existe
     if not os.path.exists(path):
         log_and_print(f"[ERREUR] Fichier introuvable : {path}", level="error", color=COLOR_RED)
-        return
+        return False
 
     try:
         # Convertir la chaîne octale en entier (base 8)
@@ -687,6 +770,7 @@ def chmod_file(path, mode_str):
         # Appliquer les nouvelles permissions
         os.chmod(path, mode)
         log_and_print(f"[ADMIN] Permissions modifiées : {path} -> {mode_str}", color=COLOR_CYAN)
+        return True
     except ValueError:
         # Erreur si le format du mode est invalide
         log_and_print(
@@ -694,6 +778,7 @@ def chmod_file(path, mode_str):
             level="error",
             color=COLOR_RED
         )
+        return False
     except PermissionError:
         # Erreur si l'utilisateur n'a pas les droits
         log_and_print(
@@ -701,9 +786,11 @@ def chmod_file(path, mode_str):
             level="error",
             color=COLOR_RED
         )
+        return False
     except OSError as e:
         # Autre erreur système
         log_and_print(f"[ERREUR] chmod impossible : {e}", level="error", color=COLOR_RED)
+        return False
 
 
 class MonitorHandler(FileSystemEventHandler):
@@ -1066,6 +1153,8 @@ def interactive_menu():
             else:
                 config = load_config()
                 filenames = _ensure_list(config.get("filenames") or config.get("filename"))
+                if not filenames and config.get("watch_all"):
+                    filenames = [os.path.basename(p) for p in file_paths]
                 print("Fichiers surveillés :")
                 for i, n in enumerate(filenames, start=1):
                     print(f"  {i}. {n}")

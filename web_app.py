@@ -65,6 +65,7 @@ _subscribers: list[queue.Queue] = []
 _subscribers_lock = threading.Lock()
 _tail_thread_lock = threading.Lock()
 _tail_thread_started = False
+_control_lock = threading.Lock()
 
 
 # ── Discord config ────────────────────────────────────────────────────────────
@@ -516,6 +517,169 @@ def set_discord_config():
         "panel_url":   data.get("panel_url",   DEFAULT_PANEL_URL),
     })
     return jsonify({"ok": True})
+
+
+def _resolve_chmod_target(filename: str):
+    """Retourne le chemin absolu d'un fichier surveillé à partir du nom (menu 7)."""
+    from utils.metadata import normalize_path as np
+
+    import monitor
+
+    name = (filename or "").strip()
+    if not name:
+        return None
+    for p in monitor.get_monitored_file_paths():
+        if os.path.basename(p) == name or np(p) == np(name):
+            return p
+    return None
+
+
+# Import différé : monitor
+@app.route("/api/control/status", methods=["GET"])
+def control_status():
+    """État de la configuration (équivalent menu 6)."""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    import monitor
+
+    with _control_lock:
+        snap = monitor.get_watch_snapshot()
+    return jsonify(snap)
+
+
+@app.route("/api/control/setup-all", methods=["POST"])
+def control_setup_all():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = flask_request.get_json(force=True, silent=True) or {}
+    directory = (data.get("directory") or "").strip()
+    if not directory:
+        return jsonify({"ok": False, "error": "Dossier requis"}), 400
+    import monitor
+
+    with _control_lock:
+        ok = monitor.setup_watch_all(directory)
+        snap = monitor.get_watch_snapshot()
+    if not ok:
+        return jsonify({"ok": False, "error": "Échec : dossier introuvable ou erreur (voir monitor.log)", "snapshot": snap}), 400
+    return jsonify({"ok": True, "snapshot": snap})
+
+
+@app.route("/api/control/setup-file", methods=["POST"])
+def control_setup_file():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = flask_request.get_json(force=True, silent=True) or {}
+    path = (data.get("path") or "").strip()
+    if not path:
+        return jsonify({"ok": False, "error": "Chemin complet du fichier requis"}), 400
+    import monitor
+
+    with _control_lock:
+        ok = monitor.setup_watch_file(path)
+        snap = monitor.get_watch_snapshot()
+    if not ok:
+        return jsonify(
+            {"ok": False, "error": "Échec : chemin absolu requis ou dossier invalide (voir monitor.log)", "snapshot": snap}
+        ), 400
+    return jsonify({"ok": True, "snapshot": snap})
+
+
+@app.route("/api/control/add-file", methods=["POST"])
+def control_add_file():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = flask_request.get_json(force=True, silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    if not filename:
+        return jsonify({"ok": False, "error": "Nom de fichier requis"}), 400
+    import monitor
+
+    with _control_lock:
+        ok = monitor.add_file(filename)
+        snap = monitor.get_watch_snapshot()
+    if not ok:
+        return jsonify({"ok": False, "error": "Impossible : configurez d'abord un dossier (menu 1 ou 2)", "snapshot": snap}), 400
+    return jsonify({"ok": True, "snapshot": snap})
+
+
+@app.route("/api/control/remove-file", methods=["POST"])
+def control_remove_file():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = flask_request.get_json(force=True, silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    if not filename:
+        return jsonify({"ok": False, "error": "Nom de fichier requis"}), 400
+    import monitor
+
+    with _control_lock:
+        ok = monitor.remove_file(filename)
+        snap = monitor.get_watch_snapshot()
+    if not ok:
+        return jsonify({"ok": False, "error": "Impossible de retirer le fichier", "snapshot": snap}), 400
+    return jsonify({"ok": True, "snapshot": snap})
+
+
+@app.route("/api/control/remove-watch", methods=["POST"])
+def control_remove_watch():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    import monitor
+
+    with _control_lock:
+        monitor.remove_watch()
+        snap = monitor.get_watch_snapshot()
+    return jsonify({"ok": True, "snapshot": snap})
+
+
+@app.route("/api/control/chmod", methods=["POST"])
+def control_chmod():
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = flask_request.get_json(force=True, silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    mode = (data.get("mode") or "").strip()
+    if not filename or not mode:
+        return jsonify({"ok": False, "error": "Fichier et mode (ex. 644) requis"}), 400
+    import monitor
+
+    with _control_lock:
+        target = _resolve_chmod_target(filename)
+        if not target:
+            snap = monitor.get_watch_snapshot()
+            return jsonify({"ok": False, "error": "Fichier inconnu dans la surveillance actuelle", "snapshot": snap}), 400
+        ok = monitor.chmod_file(target, mode)
+        snap = monitor.get_watch_snapshot()
+    if not ok:
+        return jsonify({"ok": False, "error": "chmod refusé ou mode invalide (voir monitor.log)", "snapshot": snap}), 400
+    return jsonify({"ok": True, "snapshot": snap})
+
+
+@app.route("/api/control/start-monitor", methods=["POST"])
+def control_start_monitor():
+    """Lance start_monitor dans un thread daemon (équivalent menu 8)."""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = flask_request.get_json(force=True, silent=True) or {}
+    try:
+        interval = int(data.get("interval", 1))
+    except (TypeError, ValueError):
+        interval = 1
+    interval = max(1, min(interval, 3600))
+
+    def _worker():
+        import monitor
+
+        monitor.start_monitor(scan_interval=interval)
+
+    threading.Thread(target=_worker, daemon=True, name="FSMMonitorPanel").start()
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Surveillance démarrée en arrière-plan. Si une instance tourne déjà (ex. lancement web), les alertes peuvent être dupliquées.",
+        }
+    )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

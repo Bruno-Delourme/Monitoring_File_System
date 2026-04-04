@@ -406,6 +406,79 @@
       box-shadow: 0 4px 20px rgba(220,38,38,.4); z-index: 50;
     }
 
+    /* ── Onglets Journal / Surveillance ──────────────────────── */
+    .main-tabs {
+      display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .main-tab {
+      padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .main-tab:hover { color: var(--text); border-color: #555; }
+    .main-tab.active {
+      background: var(--surface); color: var(--text); border-color: var(--purple);
+      box-shadow: 0 0 14px rgba(124, 58, 237, 0.14);
+    }
+    .panel-hidden { display: none !important; }
+    .control-layout { display: flex; flex-direction: column; gap: 14px; }
+    .control-status-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .control-status-card h2 {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      font-weight: 800; margin: 0 0 8px 0;
+    }
+    .control-status-card pre {
+      font-family: 'Cascadia Code', Consolas, monospace;
+      font-size: 11.5px; line-height: 1.45; overflow: auto; max-height: 240px;
+      background: var(--bg); padding: 10px 12px; border-radius: 6px; margin: 0;
+      color: var(--text); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-all;
+    }
+    .control-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 12px;
+    }
+    .control-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .control-card h3 {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      font-weight: 800; margin: 0;
+    }
+    .control-card .num { color: var(--purple); font-weight: 700; margin-right: 6px; }
+    .control-input, .control-select {
+      width: 100%; padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 12.5px; font-family: inherit;
+    }
+    .control-input.mono { font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; }
+    .control-select { cursor: pointer; }
+    .control-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .btn-control {
+      padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-control:hover { border-color: var(--purple); color: var(--text); }
+    .btn-control.primary {
+      background: rgba(124, 58, 237, 0.22); border-color: rgba(167, 139, 250, 0.45); color: #e9d5ff;
+    }
+    .btn-control.primary:hover { background: rgba(124, 58, 237, 0.32); }
+    .btn-control.warn {
+      background: rgba(217, 119, 6, 0.15); border-color: rgba(217, 119, 6, 0.4); color: #fdba74;
+    }
+    .btn-control.danger { border-color: rgba(220, 38, 38, 0.45); color: #fca5a5; }
+    .btn-control.danger:hover { background: rgba(220, 38, 38, 0.12); }
+    .control-hint { font-size: 11px; color: var(--muted); line-height: 1.45; margin: 0; }
+    #control-feedback { font-size: 12.5px; padding: 10px 12px; border-radius: 6px; display: none; margin-bottom: 4px; }
+    #control-feedback.ok {
+      display: block; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32); color: #86efac;
+    }
+    #control-feedback.err {
+      display: block; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.32); color: #fca5a5;
+    }
+
     @media (max-width: 700px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .log-entry  { grid-template-columns: 1fr; }
@@ -420,7 +493,7 @@
   <div class="header-badge">SÉCURITÉ</div>
   <div class="header-title">
     Surveillance Fichiers
-    <em>monitor.log</em>
+    <em>journal &amp; configuration</em>
   </div>
   <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Configurer les notifications Discord">⚙ Discord</button>
   <a class="header-btn header-btn-logout" href="/logout" title="Se déconnecter">Déconnexion</a>
@@ -432,6 +505,12 @@
 
 <!-- ── Main ───────────────────────────────────────────────── -->
 <main>
+  <div class="main-tabs" role="tablist">
+    <button type="button" class="main-tab active" id="tab-logs" role="tab" aria-selected="true" onclick="switchMainTab('logs')">Journal</button>
+    <button type="button" class="main-tab" id="tab-control" role="tab" aria-selected="false" onclick="switchMainTab('control')">Surveillance &amp; configuration</button>
+  </div>
+
+  <div id="panel-logs">
   <!-- Stats -->
   <div class="stats-grid">
     <div class="stat-card total"><div class="stat-label">Total événements</div><div class="stat-value" id="stat-total">0</div></div>
@@ -465,6 +544,67 @@
       <div id="empty-state">
         <div class="icon">📋</div>
         <p>Aucun événement pour le moment. En attente...</p>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="panel-control" class="panel-hidden">
+    <div class="control-layout">
+      <div id="control-feedback"></div>
+      <div class="control-status-card">
+        <div class="control-row" style="justify-content:space-between;align-items:center;">
+          <h2 style="margin:0;">Configuration actuelle (équivalent menu 6)</h2>
+          <button type="button" class="btn-control primary" onclick="refreshControlStatus()">Actualiser</button>
+        </div>
+        <pre id="control-status-json">Chargement…</pre>
+      </div>
+      <div class="control-grid">
+        <div class="control-card">
+          <h3><span class="num">1</span>Cibler un dossier (tous les fichiers)</h3>
+          <p class="control-hint">Surveille tous les fichiers du dossier (non récursif), comme l’option 1 du menu terminal.</p>
+          <input class="control-input mono" id="ctl-setup-all-dir" type="text" placeholder="/chemin/vers/dossier" />
+          <button type="button" class="btn-control primary" onclick="ctlSetupAll()">Enregistrer</button>
+        </div>
+        <div class="control-card">
+          <h3><span class="num">2</span>Cibler un fichier (chemin complet)</h3>
+          <p class="control-hint">Chemin absolu obligatoire — équivalent menu 2.</p>
+          <input class="control-input mono" id="ctl-setup-file-path" type="text" placeholder="/home/user/fichier.txt" />
+          <button type="button" class="btn-control primary" onclick="ctlSetupFile()">Enregistrer</button>
+        </div>
+        <div class="control-card">
+          <h3><span class="num">3</span>Ajouter un fichier (mode liste ciblée)</h3>
+          <p class="control-hint">Nom du fichier seul (dans le dossier déjà ciblé). Équivalent menu 3.</p>
+          <input class="control-input mono" id="ctl-add-filename" type="text" placeholder="ex. notes.txt" />
+          <button type="button" class="btn-control primary" onclick="ctlAddFile()">Ajouter</button>
+        </div>
+        <div class="control-card">
+          <h3><span class="num">4</span>Retirer un fichier de la liste</h3>
+          <p class="control-hint">Équivalent menu 4.</p>
+          <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
+          <button type="button" class="btn-control" onclick="ctlRemoveFile()">Retirer</button>
+        </div>
+        <div class="control-card">
+          <h3><span class="num">5</span>Supprimer toute la configuration</h3>
+          <p class="control-hint">Réinitialise la surveillance — équivalent menu 5.</p>
+          <button type="button" class="btn-control danger" onclick="ctlRemoveWatch()">Supprimer la configuration</button>
+        </div>
+        <div class="control-card">
+          <h3><span class="num">7</span>Modifier les permissions (chmod)</h3>
+          <p class="control-hint">Équivalent menu 7. Mode octal sans préfixe 0o (ex. 644, 600).</p>
+          <select class="control-select mono" id="ctl-chmod-select"><option value="">— Fichier —</option></select>
+          <input class="control-input mono" id="ctl-chmod-mode" type="text" placeholder="644" maxlength="4" style="max-width:100px;" />
+          <button type="button" class="btn-control warn" onclick="ctlChmod()">Appliquer chmod</button>
+        </div>
+        <div class="control-card">
+          <h3><span class="num">8</span>Lancer la surveillance (terminal intégré)</h3>
+          <p class="control-hint">Démarre un thread <code>start_monitor</code> comme le menu 8. Si la surveillance tourne déjà (ex. lancement avec le panel), les alertes peuvent être dupliquées.</p>
+          <div class="control-row">
+            <label class="control-hint" for="ctl-monitor-interval">Intervalle (s)</label>
+            <input class="control-input mono" id="ctl-monitor-interval" type="number" min="1" max="3600" value="1" style="max-width:88px;" />
+          </div>
+          <button type="button" class="btn-control primary" onclick="ctlStartMonitor()">Lancer la surveillance</button>
+        </div>
       </div>
     </div>
   </div>
@@ -834,6 +974,193 @@ async function testDiscord() {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAlertModal(); closeDiscordModal(); } });
+
+/* ─────────────────────────────────────────────────────────────
+   Onglet Surveillance — même actions que le menu terminal (1–8)
+   ───────────────────────────────────────────────────────────── */
+function switchMainTab(which) {
+  const logs = document.getElementById('panel-logs');
+  const ctl = document.getElementById('panel-control');
+  const tlogs = document.getElementById('tab-logs');
+  const tctl = document.getElementById('tab-control');
+  if (which === 'logs') {
+    logs.classList.remove('panel-hidden');
+    ctl.classList.add('panel-hidden');
+    tlogs.classList.add('active');
+    tctl.classList.remove('active');
+    tlogs.setAttribute('aria-selected', 'true');
+    tctl.setAttribute('aria-selected', 'false');
+  } else {
+    logs.classList.add('panel-hidden');
+    ctl.classList.remove('panel-hidden');
+    tlogs.classList.remove('active');
+    tctl.classList.add('active');
+    tlogs.setAttribute('aria-selected', 'false');
+    tctl.setAttribute('aria-selected', 'true');
+    refreshControlStatus();
+  }
+}
+
+function ctlFeedback(msg, ok) {
+  const el = document.getElementById('control-feedback');
+  if (!msg) {
+    el.textContent = '';
+    el.className = '';
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  el.className = ok ? 'ok' : 'err';
+  el.textContent = msg;
+}
+
+async function ctlPost(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    credentials: 'same-origin',
+    body: body === undefined ? '{}' : JSON.stringify(body),
+  });
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (res.status === 401) {
+    window.location.href = '/login';
+    return null;
+  }
+  return { res, data };
+}
+
+function applySnapshotToSelects(snap) {
+  const rm = document.getElementById('ctl-remove-select');
+  const ch = document.getElementById('ctl-chmod-select');
+  const prevRm = rm.value;
+  const prevCh = ch.value;
+  rm.innerHTML = '<option value="">— Choisir un fichier —</option>';
+  ch.innerHTML = '<option value="">— Fichier —</option>';
+  if (snap && snap.configured && snap.files && snap.files.length) {
+    snap.files.forEach(f => {
+      const o = document.createElement('option');
+      o.value = f.name;
+      o.textContent = f.name + (f.status === 'absent' ? ' (absent)' : '');
+      rm.appendChild(o);
+      const o2 = document.createElement('option');
+      o2.value = f.name;
+      o2.textContent = f.name + (f.status === 'absent' ? ' (absent)' : '');
+      ch.appendChild(o2);
+    });
+  }
+  if ([...rm.options].some(o => o.value === prevRm)) rm.value = prevRm;
+  if ([...ch.options].some(o => o.value === prevCh)) ch.value = prevCh;
+}
+
+async function refreshControlStatus() {
+  const pre = document.getElementById('control-status-json');
+  pre.textContent = 'Chargement…';
+  const res = await fetch('/api/control/status', { credentials: 'same-origin' });
+  if (res.status === 401) { window.location.href = '/login'; return; }
+  const snap = await res.json();
+  pre.textContent = JSON.stringify(snap, null, 2);
+  applySnapshotToSelects(snap);
+}
+
+async function ctlSetupAll() {
+  ctlFeedback('', true);
+  const directory = document.getElementById('ctl-setup-all-dir').value.trim();
+  const out = await ctlPost('/api/control/setup-all', { directory });
+  if (!out) return;
+  const { res, data } = out;
+  if (data.snapshot) {
+    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
+    applySnapshotToSelects(data.snapshot);
+  }
+  if (res.ok && data.ok) ctlFeedback('Dossier ciblé — configuration mise à jour.', true);
+  else ctlFeedback(data.error || 'Échec de la configuration.', false);
+}
+
+async function ctlSetupFile() {
+  ctlFeedback('', true);
+  const path = document.getElementById('ctl-setup-file-path').value.trim();
+  const out = await ctlPost('/api/control/setup-file', { path });
+  if (!out) return;
+  const { res, data } = out;
+  if (data.snapshot) {
+    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
+    applySnapshotToSelects(data.snapshot);
+  }
+  if (res.ok && data.ok) ctlFeedback('Fichier ciblé — configuration mise à jour.', true);
+  else ctlFeedback(data.error || 'Échec.', false);
+}
+
+async function ctlAddFile() {
+  ctlFeedback('', true);
+  const filename = document.getElementById('ctl-add-filename').value.trim();
+  const out = await ctlPost('/api/control/add-file', { filename });
+  if (!out) return;
+  const { res, data } = out;
+  if (data.snapshot) {
+    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
+    applySnapshotToSelects(data.snapshot);
+  }
+  if (res.ok && data.ok) ctlFeedback('Fichier ajouté à la liste.', true);
+  else ctlFeedback(data.error || 'Échec.', false);
+}
+
+async function ctlRemoveFile() {
+  ctlFeedback('', true);
+  const sel = document.getElementById('ctl-remove-select');
+  const filename = sel.value.trim();
+  if (!filename) { ctlFeedback('Choisissez un fichier dans la liste.', false); return; }
+  const out = await ctlPost('/api/control/remove-file', { filename });
+  if (!out) return;
+  const { res, data } = out;
+  if (data.snapshot) {
+    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
+    applySnapshotToSelects(data.snapshot);
+  }
+  if (res.ok && data.ok) ctlFeedback('Fichier retiré de la liste.', true);
+  else ctlFeedback(data.error || 'Échec.', false);
+}
+
+async function ctlRemoveWatch() {
+  if (!confirm('Supprimer toute la configuration de surveillance ?')) return;
+  ctlFeedback('', true);
+  const out = await ctlPost('/api/control/remove-watch', {});
+  if (!out) return;
+  const { res, data } = out;
+  if (data.snapshot) {
+    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
+    applySnapshotToSelects(data.snapshot);
+  }
+  if (res.ok && data.ok) ctlFeedback('Configuration supprimée.', true);
+  else ctlFeedback(data.error || 'Échec.', false);
+}
+
+async function ctlChmod() {
+  ctlFeedback('', true);
+  const filename = document.getElementById('ctl-chmod-select').value.trim();
+  const mode = document.getElementById('ctl-chmod-mode').value.trim();
+  if (!filename) { ctlFeedback('Choisissez un fichier.', false); return; }
+  if (!mode) { ctlFeedback('Indiquez un mode octal (ex. 644).', false); return; }
+  const out = await ctlPost('/api/control/chmod', { filename, mode });
+  if (!out) return;
+  const { res, data } = out;
+  if (data.snapshot) {
+    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
+    applySnapshotToSelects(data.snapshot);
+  }
+  if (res.ok && data.ok) ctlFeedback('Permissions modifiées.', true);
+  else ctlFeedback(data.error || 'chmod impossible.', false);
+}
+
+async function ctlStartMonitor() {
+  ctlFeedback('', true);
+  const iv = parseInt(document.getElementById('ctl-monitor-interval').value, 10) || 1;
+  const out = await ctlPost('/api/control/start-monitor', { interval: iv });
+  if (!out) return;
+  const { res, data } = out;
+  if (res.ok && data.ok) ctlFeedback(data.message || 'Surveillance démarrée.', true);
+  else ctlFeedback(data.error || 'Échec.', false);
+}
 
 /* ─────────────────────────────────────────────────────────────
    Build a log entry DOM element
