@@ -152,6 +152,29 @@ class TestListWatch:
         assert "f.txt" in out
 
 
+class TestRemoveFileWatchAll:
+    """Retirer un fichier en mode dossier complet : exclusion persistée (watch_all_excluded)."""
+
+    def test_remove_file_watch_all_excludes_basename(self, temp_config_file, temp_dir):
+        Path(os.path.join(temp_dir, "keep.txt")).write_text("a")
+        Path(os.path.join(temp_dir, "gone.txt")).write_text("b")
+        watch_dir = normalize_path(temp_dir)
+        with patch.object(monitor, "CONFIG_FILE", temp_config_file):
+            monitor.save_config({})
+            assert monitor.setup_watch_all(watch_dir) is True
+            paths_before = monitor.get_monitored_file_paths()
+            basenames = {os.path.basename(p) for p in paths_before}
+            assert "gone.txt" in basenames
+            assert "keep.txt" in basenames
+            assert monitor.remove_file("gone.txt") is True
+            paths_after = monitor.get_monitored_file_paths()
+            after_names = {os.path.basename(p) for p in paths_after}
+            assert "gone.txt" not in after_names
+            assert "keep.txt" in after_names
+            cfg = monitor.load_config()
+            assert "gone.txt" in cfg.get("watch_all_excluded", [])
+
+
 class TestChmodFile:
     """Tests pour chmod_file()."""
 

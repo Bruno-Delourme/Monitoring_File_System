@@ -340,6 +340,14 @@ def save_config(data):
         json.dump(data, f, indent=4)
 
 
+def _watch_all_excluded_set(config):
+    """Basenames ignorés en mode watch_all (retirés via remove_file)."""
+    raw = config.get("watch_all_excluded")
+    if not raw:
+        return set()
+    return {str(x).strip() for x in _ensure_list(raw) if str(x).strip()}
+
+
 def _ensure_list(value):
     if value is None:
         return []
@@ -369,11 +377,12 @@ def get_monitored_file_paths():
 
     # Mode: tout le dossier (non récursif)
     if watch_all:
+        excluded = _watch_all_excluded_set(config)
         paths = []
         try:
             for entry in os.listdir(watch_dir):
                 full = normalize_path(os.path.join(watch_dir, entry))
-                if os.path.isfile(full):
+                if os.path.isfile(full) and os.path.basename(full) not in excluded:
                     paths.append(full)
         except OSError:
             return []
@@ -418,6 +427,7 @@ def setup_watch(watch_directory, filenames):
     config["watch_directory"] = watch_directory
     config["watch_all"] = False
     config["single_file_target"] = False
+    config.pop("watch_all_excluded", None)
     config["filenames"] = filenames
     # Dictionnaire des métadonnées par fichier (clé = filename)
     config["file_metadata"] = {}  # rempli au fur et à mesure
@@ -505,6 +515,7 @@ def setup_watch_all(watch_directory):
     config["watch_all"] = True
     config["single_file_target"] = False
     config["filenames"] = []
+    config.pop("watch_all_excluded", None)
     config.pop("filename", None)
     config["file_metadata"] = {}
     config.setdefault("probe_interval", DEFAULT_PROBE_INTERVAL)
@@ -540,6 +551,7 @@ def add_file(filename):
     if config.get("watch_all"):
         # Basculer en mode "liste ciblée" si on veut cibler un fichier
         config["watch_all"] = False
+        config.pop("watch_all_excluded", None)
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     if filename in filenames:
         log_and_print(f"[INFO] Déjà surveillé : {filename}", color=COLOR_YELLOW)
@@ -562,6 +574,31 @@ def remove_file(filename):
         return False
     filename = filename.strip()
     config = load_config()
+
+    if config.get("watch_all"):
+        watch_dir = config.get("watch_directory")
+        if not watch_dir:
+            log_and_print("[ERREUR] Aucune surveillance configurée.", level="error", color=COLOR_RED)
+            return False
+        excl = [x.strip() for x in _ensure_list(config.get("watch_all_excluded")) if x and str(x).strip()]
+        if filename in excl:
+            return True
+        excl.append(filename)
+        seen = set()
+        unique = []
+        for x in excl:
+            if x not in seen:
+                seen.add(x)
+                unique.append(x)
+        config["watch_all_excluded"] = unique
+        meta = config.get("file_metadata")
+        if isinstance(meta, dict):
+            meta.pop(filename, None)
+            config["file_metadata"] = meta
+        save_config(config)
+        log_and_print(f"[-] Retiré de la surveillance (dossier complet) : {filename}", color=COLOR_GREEN)
+        return True
+
     filenames = _ensure_list(config.get("filenames") or config.get("filename"))
     if filename not in filenames:
         log_and_print(f"[INFO] Non surveillé : {filename}", color=COLOR_YELLOW)
@@ -741,7 +778,7 @@ def get_watch_snapshot():
             fp = normalize_path(os.path.join(watch_dir, name))
             files.append(_file_entry(name, fp))
 
-    return {
+    out = {
         "configured": True,
         "watch_directory": watch_dir,
         "watch_all": watch_all,
@@ -751,6 +788,9 @@ def get_watch_snapshot():
         "mode_description": mode_description,
         "files": files,
     }
+    if watch_all:
+        out["watch_all_excluded"] = sorted(_watch_all_excluded_set(config))
+    return out
 
 
 def chmod_file(path, mode_str):
@@ -844,12 +884,17 @@ class MonitorHandler(FileSystemEventHandler):
             return False
 
         p = normalize_path(path)
-        # Mode: tout le dossier (fichiers uniquement, non récursif)
+        # Mode: tout le dossier (fichiers uniquement, non récursif), sauf exclusions (remove_file)
         if self.watch_all:
             try:
-                return os.path.dirname(p) == self.watch_directory and os.path.isfile(p)
+                if os.path.dirname(p) != self.watch_directory or not os.path.isfile(p):
+                    return False
             except OSError:
                 return False
+            cfg = load_config()
+            if os.path.basename(p) in _watch_all_excluded_set(cfg):
+                return False
+            return True
 
         if not self.monitored_file_paths:
             return False

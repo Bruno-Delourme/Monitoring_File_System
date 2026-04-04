@@ -304,7 +304,19 @@
     .btn.active.warn  { background: var(--orange);  border-color: var(--orange); color: #fff; }
     .btn.active.info  { background: var(--purple);  border-color: var(--purple); color: #fff; }
     .btn.active.ok    { background: var(--green);   border-color: var(--green);  color: #fff; }
-    .btn-icon { padding: 6px 10px; font-size: 16px; }
+    .btn-icon {
+      padding: 6px 10px;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-icon .toolbar-lucide-icon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      flex-shrink: 0;
+    }
     .search-wrap { flex: 1; min-width: 160px; }
     .search-input {
       width: 100%; padding: 6px 12px;
@@ -390,7 +402,13 @@
       padding: min(48px, 8vh) 20px;
       color: var(--muted);
     }
-    #empty-state .icon { font-size: 38px; opacity: .3; }
+    #empty-state .empty-state-icon {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      opacity: 0.35;
+      color: var(--muted);
+    }
     #empty-state p { font-size: 16px; }
 
     /* ── Modal ───────────────────────────────────────────────── */
@@ -401,6 +419,12 @@
     }
     .overlay.open { display: flex; }
 
+    /* Modale alerte : pas de flou arrière-plan (blur très coûteux → ouverture lente sous Chrome / Windows). */
+    #alert-overlay {
+      backdrop-filter: none;
+      background: rgba(0, 0, 0, 0.82);
+    }
+
     /* Alert modal */
     #modal {
       background: var(--surface); border: 1px solid #3f1515;
@@ -408,9 +432,9 @@
       border-radius: 10px; width: min(640px, 94vw); max-height: 86vh;
       overflow: hidden; display: flex; flex-direction: column;
       box-shadow: 0 24px 80px rgba(0,0,0,.85);
-      animation: modalIn .18s ease;
+      animation: modalIn .12s ease-out;
     }
-    @keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(6px); } to { opacity:1; transform:none; } }
+    @keyframes modalIn { from { opacity:0; transform:scale(.98) translateY(4px); } to { opacity:1; transform:none; } }
 
     .modal-header {
       display: flex; align-items: flex-start; gap: 12px;
@@ -431,10 +455,7 @@
       height: 28px;
       color: #f87171;
       stroke: currentColor;
-      filter:
-        drop-shadow(0 0 4px rgba(248, 113, 113, 0.95))
-        drop-shadow(0 0 12px rgba(220, 38, 38, 0.65))
-        drop-shadow(0 0 22px rgba(185, 28, 28, 0.45));
+      filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.55));
     }
     .modal-title-wrap { flex: 1; min-width: 0; }
     .modal-title {
@@ -459,7 +480,16 @@
     .modal-ts { font-size: 12px; color: var(--muted); margin-top: 4px; }
     .modal-close { color: var(--muted); font-size: 19px; cursor: pointer; flex-shrink: 0; line-height: 1; }
     .modal-close:hover { color: var(--text); }
-    .modal-body { padding: 16px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .modal-body {
+      padding: 16px 18px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
 
     /* ── Alerte synthétique + détails repliables ─────────────── */
     .alert-modal-root { display: flex; flex-direction: column; gap: 4px; }
@@ -493,7 +523,17 @@
     details.alert-tech summary::before { content: '▸'; font-size: 11px; opacity: .7; transition: transform .15s; }
     details.alert-tech[open] summary::before { transform: rotate(90deg); }
     details.alert-tech[open] summary { border-bottom: 1px solid var(--border); color: var(--text); background: var(--surface2); }
-    .alert-tech-inner { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; max-height: min(42vh, 380px); overflow-y: auto; }
+    .alert-tech-inner {
+      padding: 12px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: min(52vh, 480px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
     .alert-tech-block { display: flex; flex-direction: column; gap: 6px; }
     .alert-tech-pair { padding: 10px 0; border-bottom: 1px solid var(--border); }
     .alert-tech-pair:last-child { border-bottom: none; padding-bottom: 0; }
@@ -534,8 +574,8 @@
     #discord-modal {
       background: var(--surface);
       border: 1px solid rgba(167, 139, 250, 0.38);
-      border-radius: 10px;
-      width: min(560px, 94vw);
+      border-radius: 12px;
+      width: min(640px, 96vw);
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -548,39 +588,39 @@
     .discord-header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 14px 16px;
+      gap: 12px;
+      padding: 18px 22px;
       border-bottom: 1px solid rgba(167, 139, 250, 0.3);
       background: linear-gradient(180deg, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0.06) 100%);
     }
     .discord-header h3 {
       flex: 1;
-      font-size: 19px;
+      font-size: 21px;
       font-weight: 700;
       color: #ffffff;
     }
     .discord-body {
-      padding: 18px 20px;
+      padding: 22px 24px 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 18px;
       background: rgba(124, 58, 237, 0.04);
     }
-    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group { display: flex; flex-direction: column; gap: 8px; }
     .form-label {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       color: #f1f5f9;
       text-transform: uppercase;
-      letter-spacing: .8px;
+      letter-spacing: .75px;
     }
     .form-input {
-      padding: 10px 14px;
+      padding: 12px 16px;
       background: var(--bg);
       border: 1px solid rgba(167, 139, 250, 0.28);
-      border-radius: 6px;
+      border-radius: 8px;
       color: #f8fafc;
-      font-size: 16px;
+      font-size: 17px;
       outline: none;
       transition: border-color .07s ease-out, box-shadow .07s ease-out;
     }
@@ -588,22 +628,22 @@
       border-color: rgba(196, 181, 253, 0.7);
       box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.28);
     }
-    .form-hint { font-size: 13px; color: #e2e8f0; line-height: 1.45; }
+    .form-hint { font-size: 14px; color: #e2e8f0; line-height: 1.55; }
     .discord-footer {
       display: flex;
-      gap: 10px;
-      padding: 14px 20px;
+      gap: 12px;
+      padding: 18px 24px;
       border-top: 1px solid rgba(167, 139, 250, 0.26);
       background: rgba(124, 58, 237, 0.06);
     }
     .btn-discord-footer {
       font-family: var(--font-ui);
-      padding: 10px 18px;
+      padding: 12px 22px;
       background: rgba(124, 58, 237, 0.12);
       border: 1px solid rgba(167, 139, 250, 0.4);
-      border-radius: 6px;
+      border-radius: 8px;
       color: #f1f5f9;
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 600;
       cursor: pointer;
       transition: border-color .07s ease-out, background .07s ease-out, color .07s ease-out, box-shadow .07s ease-out;
@@ -743,7 +783,8 @@
       font-size: 17px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
       font-weight: 800; margin: 0;
     }
-    .control-status-card pre {
+    .control-status-card pre,
+    #control-status-json {
       font-family: 'Cascadia Code', Consolas, monospace;
       font-size: 12.5px;
       line-height: 1.45;
@@ -755,26 +796,25 @@
       scrollbar-gutter: stable;
       background: var(--bg); padding: 10px 12px; border-radius: 6px; margin: 0;
       color: var(--text); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-all;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
     .control-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
-    .control-retirer-monitor-row {
+    .control-chmod-row {
       grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      align-items: stretch;
       min-width: 0;
     }
-    .control-chmod-danger-row {
+    .control-bottom-row {
       grid-column: 1 / -1;
       display: grid;
-      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
-      align-items: start;
+      align-items: stretch;
       min-width: 0;
     }
     .control-card--monitor {
@@ -870,10 +910,12 @@
       box-shadow: 0 0 14px rgba(220, 38, 38, 0.22);
     }
     .control-hint { font-size: 14px; color: var(--muted); line-height: 1.45; margin: 0; }
+    /* Hauteur fixe : évite le saut de mise en page quand le message apparaît / disparaît (ctlFeedback). */
     .control-feedback-slot {
       flex: 0 0 auto;
+      height: 52px;
+      min-height: 52px;
       margin-bottom: 0;
-      max-height: 52px;
       overflow: hidden;
       box-sizing: border-box;
     }
@@ -889,6 +931,7 @@
       display: none;
       margin: 0;
       box-sizing: border-box;
+      height: 100%;
       max-height: 52px;
       overflow-x: hidden;
       overflow-y: auto;
@@ -950,8 +993,7 @@
       .log-entry  { grid-template-columns: 1fr; }
       .log-cell   { border-right: none; padding: 4px 11px; }
       .control-grid { grid-template-columns: 1fr; }
-      .control-retirer-monitor-row,
-      .control-chmod-danger-row { grid-template-columns: 1fr; }
+      .control-bottom-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -1018,7 +1060,14 @@
       <input class="search-input" id="search" type="text" placeholder="Rechercher dans les logs..." oninput="applyFilters()" />
     </div>
     <button class="btn btn-icon" id="autoscroll-btn" onclick="toggleAutoScroll()" title="Défilement auto">⬇ Auto</button>
-    <button class="btn btn-icon" onclick="clearDisplay()" title="Vider l'affichage">🗑</button>
+    <button type="button" class="btn btn-icon" onclick="clearDisplay()" title="Vider l'affichage" aria-label="Vider l'affichage">
+      <!-- Lucide « trash » (ISC) — https://lucide.dev/icons/trash -->
+      <svg class="toolbar-lucide-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+        <path d="M3 6h18" />
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      </svg>
+    </button>
   </div>
 
   <!-- Log panel -->
@@ -1029,7 +1078,17 @@
     </div>
     <div id="log-list">
       <div id="empty-state">
-        <div class="icon">📋</div>
+        <!-- Lucide « calendar-sync » (ISC) — https://lucide.dev/icons/calendar-sync -->
+        <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M11 10v4h4" />
+          <path d="m11 14 1.535-1.605a5 5 0 0 1 8 1.5" />
+          <path d="M16 2v4" />
+          <path d="m21 18-1.535 1.605a5 5 0 0 1-8-1.5" />
+          <path d="M21 22v-4h-4" />
+          <path d="M21 8.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4.3" />
+          <path d="M3 10h4" />
+          <path d="M8 2v4" />
+        </svg>
         <p>Aucun événement pour le moment. En attente...</p>
       </div>
     </div>
@@ -1067,24 +1126,7 @@
           <input class="control-input mono" id="ctl-add-filename" type="text" placeholder="ex. notes.txt" />
           <button type="button" class="btn-control primary" onclick="ctlAddFile()">Ajouter</button>
         </div>
-        <div class="control-retirer-monitor-row">
-          <div class="control-card">
-            <h3>Retirer un fichier de la liste</h3>
-            <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
-            <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
-            <button type="button" class="btn-control" onclick="openConfirmRemoveFile()">Retirer</button>
-          </div>
-          <div class="control-card control-card--monitor">
-            <h3>Surveillance (terminal intégré)</h3>
-            <p class="control-hint" title="Démarre un thread start_monitor. Si la surveillance tourne déjà, les alertes peuvent être dupliquées.">Thread <code>start_monitor</code> — doublons possibles si déjà actif.</p>
-            <div class="control-row">
-              <label class="control-hint" for="ctl-monitor-interval" style="margin:0;">Intervalle (s)</label>
-              <input class="control-input mono" id="ctl-monitor-interval" type="number" min="1" max="3600" value="1" style="max-width:88px;" />
-            </div>
-            <button type="button" class="btn-control primary" onclick="ctlStartMonitor()">Lancer</button>
-          </div>
-        </div>
-        <div class="control-chmod-danger-row">
+        <div class="control-chmod-row">
           <div class="control-card control-card--chmod">
             <h3>Modifier les permissions</h3>
             <p class="control-hint">Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme. Le mode se met à jour selon le fichier choisi.</p>
@@ -1115,6 +1157,23 @@
               </div>
             </div>
             <button type="button" class="btn-control primary" onclick="ctlChmod()">Appliquer changement</button>
+          </div>
+        </div>
+        <div class="control-bottom-row">
+          <div class="control-card">
+            <h3>Retirer un fichier de la liste</h3>
+            <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
+            <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
+            <button type="button" class="btn-control" onclick="openConfirmRemoveFile()">Retirer</button>
+          </div>
+          <div class="control-card control-card--monitor">
+            <h3>Surveillance (terminal intégré)</h3>
+            <p class="control-hint" title="Démarre un thread start_monitor. Si la surveillance tourne déjà, les alertes peuvent être dupliquées.">Thread <code>start_monitor</code> — doublons possibles si déjà actif.</p>
+            <div class="control-row">
+              <label class="control-hint" for="ctl-monitor-interval" style="margin:0;">Intervalle (s)</label>
+              <input class="control-input mono" id="ctl-monitor-interval" type="number" min="1" max="3600" value="1" style="max-width:88px;" />
+            </div>
+            <button type="button" class="btn-control primary" onclick="ctlStartMonitor()">Lancer</button>
           </div>
           <div class="control-card control-card--danger-reset">
             <h3>Supprimer toute la configuration</h3>
@@ -1485,16 +1544,22 @@ function buildAlertModalHtml(c) {
 }
 
 function openAlertModal(log) {
-  document.getElementById('modal-title').innerHTML = formatAlertTitleHtml(log.message);
-  document.getElementById('modal-ts').textContent  = log.timestamp || '';
+  const overlay = document.getElementById('alert-overlay');
   const body = document.getElementById('modal-body');
+  document.getElementById('modal-title').innerHTML = formatAlertTitleHtml(log.message);
+  document.getElementById('modal-ts').textContent = log.timestamp || '';
+  body.innerHTML = '';
+  overlay.classList.add('open');
   const details = log.details || [];
-  if (details.length === 0) {
-    body.innerHTML = '<p class="alert-muted">Aucun détail supplémentaire.</p>';
-  } else {
-    body.innerHTML = buildAlertModalHtml(classifyAlertDetails(details));
-  }
-  document.getElementById('alert-overlay').classList.add('open');
+  /* Corps lourd : après le 1er paint (évite de bloquer l’affichage du voile + en-tête). */
+  setTimeout(() => {
+    if (!overlay.classList.contains('open')) return;
+    if (details.length === 0) {
+      body.innerHTML = '<p class="alert-muted">Aucun détail supplémentaire.</p>';
+    } else {
+      body.innerHTML = buildAlertModalHtml(classifyAlertDetails(details));
+    }
+  }, 0);
 }
 function closeAlertModal()  { document.getElementById('alert-overlay').classList.remove('open'); }
 function handleAlertOverlay(e) { if (e.target === document.getElementById('alert-overlay')) closeAlertModal(); }
@@ -1592,6 +1657,30 @@ document.addEventListener('keydown', e => {
     closeConfirmRemoveFile();
   }
 });
+
+/* Molette sur zones scroll imbriquées (#control-status-json, Détails techniques) : sans ça,
+   le parent (.control-layout / .modal-body) absorbe souvent le scroll sous Chrome / Edge. */
+(function setupNestedScrollWheel() {
+  const BOOST = 1.4;
+  document.addEventListener('wheel', function (e) {
+    const el = e.target.closest('#control-status-json, .alert-tech-inner');
+    if (!el) return;
+    const sh = el.scrollHeight;
+    const ch = el.clientHeight;
+    if (sh <= ch + 1) return;
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 14;
+    else if (e.deltaMode === 2) dy *= ch * 0.9;
+    dy *= BOOST;
+    const st = el.scrollTop;
+    const atTop = st <= 0.5;
+    const atBottom = st + ch >= sh - 1.5;
+    if ((dy < 0 && !atTop) || (dy > 0 && !atBottom)) {
+      el.scrollTop += dy;
+      e.preventDefault();
+    }
+  }, { passive: false, capture: true });
+})();
 
 /* ─────────────────────────────────────────────────────────────
    Onglet Surveillance & configuration (API /api/control)
@@ -1810,7 +1899,6 @@ async function refreshControlStatus(forceRefresh) {
 }
 
 async function ctlSetupAll() {
-  ctlFeedback('', true);
   const directory = document.getElementById('ctl-setup-all-dir').value.trim();
   const out = await ctlPost('/api/control/setup-all', { directory });
   if (!out) return;
@@ -1821,7 +1909,6 @@ async function ctlSetupAll() {
 }
 
 async function ctlSetupFile() {
-  ctlFeedback('', true);
   const path = document.getElementById('ctl-setup-file-path').value.trim();
   const out = await ctlPost('/api/control/setup-file', { path });
   if (!out) return;
@@ -1832,7 +1919,6 @@ async function ctlSetupFile() {
 }
 
 async function ctlAddFile() {
-  ctlFeedback('', true);
   const filename = document.getElementById('ctl-add-filename').value.trim();
   const out = await ctlPost('/api/control/add-file', { filename });
   if (!out) return;
@@ -1846,7 +1932,6 @@ async function ctlRemoveFileConfirm() {
   const filename = _pendingRemoveFilename;
   closeConfirmRemoveFile();
   if (!filename) return;
-  ctlFeedback('', true);
   const out = await ctlPost('/api/control/remove-file', { filename });
   if (!out) return;
   const { res, data } = out;
@@ -1857,7 +1942,6 @@ async function ctlRemoveFileConfirm() {
 
 async function ctlRemoveWatchConfirm() {
   closeConfirmRemoveWatch();
-  ctlFeedback('', true);
   const out = await ctlPost('/api/control/remove-watch', {});
   if (!out) return;
   const { res, data } = out;
@@ -1941,7 +2025,6 @@ function syncChmodFromOctalInput() {
 }
 
 async function ctlChmod() {
-  ctlFeedback('', true);
   const filename = document.getElementById('ctl-chmod-select').value.trim();
   if (!filename) { ctlFeedback('Choisissez un fichier.', false); return; }
   syncChmodFromBoxes();
@@ -1963,7 +2046,6 @@ async function ctlChmod() {
 }
 
 async function ctlStartMonitor() {
-  ctlFeedback('', true);
   const iv = parseInt(document.getElementById('ctl-monitor-interval').value, 10) || 1;
   const out = await ctlPost('/api/control/start-monitor', { interval: iv });
   if (!out) return;
