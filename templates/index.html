@@ -479,6 +479,41 @@
       display: block; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.32); color: #fca5a5;
     }
 
+    .chmod-matrix-wrap { display: flex; flex-direction: column; gap: 12px; }
+    .chmod-octal-row { flex-wrap: wrap; }
+    .chmod-matrix {
+      display: grid;
+      grid-template-columns: minmax(100px, 1fr) repeat(3, minmax(72px, auto));
+      gap: 6px 10px;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .chmod-matrix-head {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .55px;
+      color: var(--muted); font-weight: 700; text-align: center;
+    }
+    .chmod-matrix-head:first-child { text-align: left; }
+    .chmod-row-label {
+      font-size: 12px; font-weight: 600; color: var(--text);
+    }
+    .chmod-cell {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .chmod-cell label {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 12px; color: var(--muted); user-select: none;
+    }
+    .chmod-cell input[type="checkbox"] {
+      width: 15px; height: 15px; accent-color: var(--purple); cursor: pointer;
+    }
+    #chmod-mode-hint {
+      font-family: 'Cascadia Code', Consolas, monospace;
+      font-size: 11.5px; color: #94a3b8;
+    }
+
     @media (max-width: 700px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .log-entry  { grid-template-columns: 1fr; }
@@ -591,9 +626,33 @@
         </div>
         <div class="control-card">
           <h3><span class="num">7</span>Modifier les permissions (chmod)</h3>
-          <p class="control-hint">Équivalent menu 7. Mode octal sans préfixe 0o (ex. 644, 600).</p>
+          <p class="control-hint">Équivalent menu 7. Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme.</p>
           <select class="control-select mono" id="ctl-chmod-select"><option value="">— Fichier —</option></select>
-          <input class="control-input mono" id="ctl-chmod-mode" type="text" placeholder="644" maxlength="4" style="max-width:100px;" />
+          <div class="chmod-matrix-wrap">
+            <div class="chmod-octal-row control-row">
+              <label class="control-hint" for="ctl-chmod-mode" style="margin:0;">Mode octal</label>
+              <input class="control-input mono" id="ctl-chmod-mode" type="text" placeholder="644" maxlength="4" inputmode="numeric" style="max-width:88px;" value="644" oninput="syncChmodFromOctalInput()" />
+              <span class="control-hint" id="chmod-mode-hint" style="margin:0;">→ rw-r--r--</span>
+            </div>
+            <div class="chmod-matrix" role="group" aria-label="Permissions par catégorie">
+              <div class="chmod-matrix-head"></div>
+              <div class="chmod-matrix-head">Lecture</div>
+              <div class="chmod-matrix-head">Écriture</div>
+              <div class="chmod-matrix-head">Exécution</div>
+              <div class="chmod-row-label">Propriétaire</div>
+              <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-u-r" onchange="syncChmodFromBoxes()" /> L</label></div>
+              <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-u-w" onchange="syncChmodFromBoxes()" /> E</label></div>
+              <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-u-x" onchange="syncChmodFromBoxes()" /> X</label></div>
+              <div class="chmod-row-label">Groupe</div>
+              <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-g-r" onchange="syncChmodFromBoxes()" /> L</label></div>
+              <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-g-w" onchange="syncChmodFromBoxes()" /> E</label></div>
+              <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-g-x" onchange="syncChmodFromBoxes()" /> X</label></div>
+              <div class="chmod-row-label">Autres</div>
+              <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-o-r" onchange="syncChmodFromBoxes()" /> L</label></div>
+              <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-o-w" onchange="syncChmodFromBoxes()" /> E</label></div>
+              <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-o-x" onchange="syncChmodFromBoxes()" /> X</label></div>
+            </div>
+          </div>
           <button type="button" class="btn-control warn" onclick="ctlChmod()">Appliquer chmod</button>
         </div>
         <div class="control-card">
@@ -1135,12 +1194,92 @@ async function ctlRemoveWatch() {
   else ctlFeedback(data.error || 'Échec.', false);
 }
 
+function chmodRwxTriplet(n) {
+  n = Math.max(0, Math.min(7, parseInt(n, 10) || 0));
+  return ((n & 4) ? 'r' : '-') + ((n & 2) ? 'w' : '-') + ((n & 1) ? 'x' : '-');
+}
+
+function updateChmodHint(u, g, o) {
+  const el = document.getElementById('chmod-mode-hint');
+  if (!el) return;
+  el.textContent = '→ ' + chmodRwxTriplet(u) + chmodRwxTriplet(g) + chmodRwxTriplet(o);
+}
+
+function setChmodTriplet(prefix, n) {
+  n = Math.max(0, Math.min(7, n | 0));
+  const r = document.getElementById('ctl-chmod-' + prefix + '-r');
+  const w = document.getElementById('ctl-chmod-' + prefix + '-w');
+  const x = document.getElementById('ctl-chmod-' + prefix + '-x');
+  if (!r || !w || !x) return;
+  r.checked = !!(n & 4);
+  w.checked = !!(n & 2);
+  x.checked = !!(n & 1);
+}
+
+function tripletFromChmodBoxes(prefix) {
+  let n = 0;
+  const r = document.getElementById('ctl-chmod-' + prefix + '-r');
+  const w = document.getElementById('ctl-chmod-' + prefix + '-w');
+  const x = document.getElementById('ctl-chmod-' + prefix + '-x');
+  if (r && r.checked) n += 4;
+  if (w && w.checked) n += 2;
+  if (x && x.checked) n += 1;
+  return n;
+}
+
+function syncChmodFromBoxes() {
+  const u = tripletFromChmodBoxes('u');
+  const g = tripletFromChmodBoxes('g');
+  const o = tripletFromChmodBoxes('o');
+  const inp = document.getElementById('ctl-chmod-mode');
+  if (inp) inp.value = String(u) + String(g) + String(o);
+  updateChmodHint(u, g, o);
+}
+
+function syncChmodFromOctalInput() {
+  const input = document.getElementById('ctl-chmod-mode');
+  if (!input) return;
+  let raw = input.value.trim().replace(/^0o?/i, '').replace(/[^0-7]/g, '');
+  if (raw.length > 3) raw = raw.slice(-3);
+  if (raw.length === 0) {
+    setChmodTriplet('u', 0);
+    setChmodTriplet('g', 0);
+    setChmodTriplet('o', 0);
+    updateChmodHint(0, 0, 0);
+    return;
+  }
+  let u = 0, g = 0, o = 0;
+  if (raw.length === 1) {
+    u = parseInt(raw[0], 10) || 0;
+  } else if (raw.length === 2) {
+    u = parseInt(raw[0], 10) || 0;
+    g = parseInt(raw[1], 10) || 0;
+  } else {
+    u = parseInt(raw[0], 10) || 0;
+    g = parseInt(raw[1], 10) || 0;
+    o = parseInt(raw[2], 10) || 0;
+  }
+  if (u > 7) u = 0;
+  if (g > 7) g = 0;
+  if (o > 7) o = 0;
+  setChmodTriplet('u', u);
+  setChmodTriplet('g', g);
+  setChmodTriplet('o', o);
+  updateChmodHint(u, g, o);
+}
+
 async function ctlChmod() {
   ctlFeedback('', true);
   const filename = document.getElementById('ctl-chmod-select').value.trim();
-  const mode = document.getElementById('ctl-chmod-mode').value.trim();
   if (!filename) { ctlFeedback('Choisissez un fichier.', false); return; }
-  if (!mode) { ctlFeedback('Indiquez un mode octal (ex. 644).', false); return; }
+  syncChmodFromBoxes();
+  let mode = document.getElementById('ctl-chmod-mode').value.trim().replace(/[^0-7]/g, '');
+  if (mode.length > 3) mode = mode.slice(-3);
+  if (mode.length < 3) {
+    ctlFeedback('Mode incomplet : trois chiffres octaux (ex. 644) ou cochez les cases.', false);
+    return;
+  }
+  document.getElementById('ctl-chmod-mode').value = mode;
   const out = await ctlPost('/api/control/chmod', { filename, mode });
   if (!out) return;
   const { res, data } = out;
@@ -1390,6 +1529,7 @@ function connectSSE() {
 }
 
 autoscrollBtn.classList.add('active');
+syncChmodFromOctalInput();
 loadHistory().then(() => connectSSE());
 
 /* Fermeture d’onglet / navigation : purge du stockage local (pas d’historique sensible en cache). */
