@@ -77,7 +77,14 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 0;
+    }
+    .header-title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 18px;
+      min-width: 0;
     }
     .header-badge {
       font-family: var(--font-ui-condensed);
@@ -142,6 +149,12 @@
       color: #ede9fe;
       background: rgba(124, 58, 237, 0.28);
       box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.25), 0 0 20px rgba(124, 58, 237, 0.28);
+    }
+    .header-btn-discord .header-discord-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: block;
     }
     .header-btn-logout {
       border-color: rgba(248, 113, 113, 0.55);
@@ -485,17 +498,29 @@
     }
     .form-input:focus { border-color: #555; }
     .form-hint { font-size: 11.5px; color: var(--muted); }
-    .discord-footer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
-    .btn-save {
-      flex: 1; padding: 8px; background: var(--green); border: none;
-      border-radius: 6px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    .discord-footer {
+      display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border);
     }
-    .btn-save:hover { background: #15803d; }
-    .btn-test {
-      padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 6px; color: var(--text); font-size: 14px; cursor: pointer;
+    .btn-discord-footer {
+      font-family: var(--font-ui);
+      padding: 8px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
     }
-    .btn-test:hover { border-color: #555; }
+    .btn-discord-footer:hover { border-color: #555; background: var(--surface); }
+    .btn-discord-footer--primary {
+      flex: 1;
+      min-width: 0;
+      border-color: #444;
+      font-weight: 700;
+    }
+    .btn-discord-footer--primary:hover { border-color: #666; }
 
     /* ── Modal confirmation (suppression config surveillance) ─ */
     #confirm-remove-watch-modal {
@@ -569,6 +594,7 @@
     /* ── Onglets Journal / Surveillance ──────────────────────── */
     .main-tabs {
       display: flex;
+      align-items: center;
       gap: 8px;
       flex-wrap: wrap;
       flex-shrink: 0;
@@ -585,7 +611,13 @@
       box-shadow: 0 0 14px rgba(124, 58, 237, 0.14);
     }
     .panel-hidden { display: none !important; }
-    .control-layout { display: flex; flex-direction: column; gap: 14px; }
+    .control-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      min-height: 0;
+    }
     .control-status-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 14px 16px;
@@ -606,6 +638,7 @@
     .control-status-card pre {
       font-family: 'Cascadia Code', Consolas, monospace;
       font-size: 12.5px; line-height: 1.45; overflow: auto; max-height: 240px;
+      scrollbar-gutter: stable;
       background: var(--bg); padding: 10px 12px; border-radius: 6px; margin: 0;
       color: var(--text); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-all;
     }
@@ -614,13 +647,40 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
-    .control-chmod-monitor-row {
+    .control-retirer-monitor-row {
       grid-column: 1 / -1;
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 12px;
       align-items: stretch;
       min-width: 0;
+    }
+    .control-chmod-danger-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      min-width: 0;
+    }
+    .control-card--monitor {
+      padding: 12px 14px;
+      gap: 8px;
+    }
+    .control-card--monitor h3 {
+      font-size: 10px;
+      letter-spacing: 0.85px;
+    }
+    .control-card--monitor .control-hint {
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .control-card--monitor .btn-control.primary {
+      margin-top: auto;
+    }
+    .control-card--danger-reset {
+      padding: 12px 14px;
+      gap: 8px;
     }
     .control-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -639,50 +699,92 @@
     .control-input.mono { font-family: 'Cascadia Code', Consolas, monospace; font-size: 12.5px; }
     .control-select { cursor: pointer; }
     .control-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    /* Secondaire : même famille violette que .primary, un cran plus discret (Retirer, Annuler, etc.) */
     .btn-control {
       font-family: var(--font-ui);
-      padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: all .15s;
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(167, 139, 250, 0.38);
+      background: rgba(124, 58, 237, 0.1);
+      color: #d8b4fe;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .18s, border-color .18s, color .18s, box-shadow .18s;
     }
-    .btn-control:hover { border-color: var(--purple); color: var(--text); }
+    .btn-control:hover {
+      border-color: rgba(196, 181, 253, 0.72);
+      color: #f3e8ff;
+      background: rgba(124, 58, 237, 0.24);
+      box-shadow: 0 0 14px rgba(124, 58, 237, 0.22);
+    }
     .btn-control.primary {
-      background: rgba(124, 58, 237, 0.22); border-color: rgba(167, 139, 250, 0.45); color: #e9d5ff;
+      background: rgba(124, 58, 237, 0.28);
+      border-color: rgba(196, 181, 253, 0.55);
+      color: #f3e8ff;
     }
-    .btn-control.primary:hover { background: rgba(124, 58, 237, 0.32); }
+    .btn-control.primary:hover {
+      background: rgba(124, 58, 237, 0.44);
+      border-color: #c4b5fd;
+      box-shadow: 0 0 18px rgba(124, 58, 237, 0.32);
+    }
     .btn-control.warn {
-      background: rgba(217, 119, 6, 0.15); border-color: rgba(217, 119, 6, 0.4); color: #fdba74;
+      background: rgba(217, 119, 6, 0.15);
+      border-color: rgba(217, 119, 6, 0.45);
+      color: #fdba74;
     }
-    .btn-control.danger { border-color: rgba(220, 38, 38, 0.45); color: #fca5a5; }
-    .btn-control.danger:hover { background: rgba(220, 38, 38, 0.12); }
+    .btn-control.warn:hover {
+      background: rgba(217, 119, 6, 0.28);
+      border-color: rgba(251, 191, 36, 0.65);
+      color: #fde68a;
+      box-shadow: 0 0 14px rgba(217, 119, 6, 0.22);
+    }
+    .btn-control.danger {
+      border-color: rgba(248, 113, 113, 0.5);
+      color: #fca5a5;
+      background: rgba(220, 38, 38, 0.1);
+    }
+    .btn-control.danger:hover {
+      background: rgba(220, 38, 38, 0.24);
+      border-color: rgba(252, 165, 165, 0.75);
+      color: #fecaca;
+      box-shadow: 0 0 14px rgba(220, 38, 38, 0.22);
+    }
     .control-hint { font-size: 12px; color: var(--muted); line-height: 1.45; margin: 0; }
-    /* Hauteur fixe : l’apparition du message ne décale plus le reste (scroll éventuel dans la bannière) */
+    /*
+      Bandeau de feedback : hauteur plafonnée + min-height:0 pour le flex
+      (sinon min-height:auto laisse le bloc grandir avec le texte et repousse tout le panneau).
+    */
     .control-feedback-slot {
-      flex-shrink: 0;
-      height: 60px;
-      margin-bottom: 4px;
+      flex: 0 0 40px;
+      height: 40px;
+      max-height: 40px;
+      min-height: 0;
+      margin-bottom: 6px;
+      overflow: hidden;
       box-sizing: border-box;
     }
     #control-feedback {
-      font-size: 14.5px;
-      padding: 10px 12px;
+      font-size: 12.5px;
+      line-height: 1.35;
+      padding: 6px 10px;
       border-radius: 6px;
       display: none;
       margin: 0;
       box-sizing: border-box;
+      max-height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
     }
     #control-feedback.ok {
       display: block;
       height: 100%;
-      max-height: 100%;
-      overflow-y: auto;
       background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32); color: #86efac;
     }
     #control-feedback.err {
       display: block;
       height: 100%;
-      max-height: 100%;
-      overflow-y: auto;
       background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.32); color: #fca5a5;
     }
 
@@ -733,7 +835,8 @@
       .log-entry  { grid-template-columns: 1fr; }
       .log-cell   { border-right: none; padding: 4px 11px; }
       .control-grid { grid-template-columns: 1fr; }
-      .control-chmod-monitor-row { grid-template-columns: 1fr; }
+      .control-retirer-monitor-row,
+      .control-chmod-danger-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -744,14 +847,24 @@
   <div class="header-row">
     <div class="header-badge">SÉCURITÉ</div>
     <div class="header-title-block">
-      <div class="header-title">Surveillance Fichiers</div>
-      <div class="main-tabs" role="tablist">
-        <button type="button" class="main-tab active" id="tab-logs" role="tab" aria-selected="true" onclick="switchMainTab('logs')">Journal</button>
-        <button type="button" class="main-tab" id="tab-control" role="tab" aria-selected="false" onclick="switchMainTab('control')">Configuration</button>
+      <div class="header-title-row">
+        <div class="header-title">Surveillance Fichiers</div>
+        <div class="main-tabs" role="tablist">
+          <button type="button" class="main-tab active" id="tab-logs" role="tab" aria-selected="true" onclick="switchMainTab('logs')">Journal</button>
+          <button type="button" class="main-tab" id="tab-control" role="tab" aria-selected="false" onclick="switchMainTab('control')">Configuration</button>
+        </div>
       </div>
     </div>
     <div class="header-trailing">
-      <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Webhook Discord : rappel toutes les 3 h (sans alertes fichiers)">⚙ Discord</button>
+      <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Webhook Discord : rappel toutes les 3 h (sans alertes fichiers)">
+        <!-- Lucide « webhook » (ISC) — https://lucide.dev/icons/webhook -->
+        <svg class="header-discord-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
+          <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" />
+          <path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" />
+        </svg>
+        Discord
+      </button>
       <div id="status-pill" class="connecting">
         <div class="dot"></div>
         <span id="status-text">Connexion…</span>
@@ -839,58 +952,60 @@
           <input class="control-input mono" id="ctl-add-filename" type="text" placeholder="ex. notes.txt" />
           <button type="button" class="btn-control primary" onclick="ctlAddFile()">Ajouter</button>
         </div>
-        <div class="control-card">
-          <h3>Retirer un fichier de la liste</h3>
-          <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
-          <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
-          <button type="button" class="btn-control" onclick="ctlRemoveFile()">Retirer</button>
-        </div>
-        <div class="control-card">
-          <h3>Supprimer toute la configuration</h3>
-          <p class="control-hint">Réinitialise complètement la surveillance.</p>
-          <button type="button" class="btn-control danger" onclick="openConfirmRemoveWatch()">Supprimer la configuration</button>
-        </div>
-        <div class="control-chmod-monitor-row">
-        <div class="control-card control-card--chmod">
-          <h3>Modifier les permissions</h3>
-          <p class="control-hint">Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme. Le mode se met à jour selon le fichier choisi.</p>
-          <select class="control-select mono" id="ctl-chmod-select" onchange="syncChmodFieldsFromSelection()"><option value="">— Fichier —</option></select>
-          <div class="chmod-matrix-wrap">
-            <div class="chmod-octal-row control-row">
-              <label class="control-hint" for="ctl-chmod-mode" style="margin:0;">Mode octal</label>
-              <input class="control-input mono" id="ctl-chmod-mode" type="text" placeholder="644" maxlength="4" inputmode="numeric" style="max-width:88px;" value="644" oninput="syncChmodFromOctalInput()" />
-              <span class="control-hint" id="chmod-mode-hint" style="margin:0;">→ rw-r--r--</span>
-            </div>
-            <div class="chmod-matrix" role="group" aria-label="Permissions par catégorie">
-              <div class="chmod-matrix-head"></div>
-              <div class="chmod-matrix-head">Lecture</div>
-              <div class="chmod-matrix-head">Écriture</div>
-              <div class="chmod-matrix-head">Exécution</div>
-              <div class="chmod-row-label">Propriétaire</div>
-              <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-u-r" onchange="syncChmodFromBoxes()" /> L</label></div>
-              <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-u-w" onchange="syncChmodFromBoxes()" /> E</label></div>
-              <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-u-x" onchange="syncChmodFromBoxes()" /> X</label></div>
-              <div class="chmod-row-label">Groupe</div>
-              <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-g-r" onchange="syncChmodFromBoxes()" /> L</label></div>
-              <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-g-w" onchange="syncChmodFromBoxes()" /> E</label></div>
-              <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-g-x" onchange="syncChmodFromBoxes()" /> X</label></div>
-              <div class="chmod-row-label">Autres</div>
-              <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-o-r" onchange="syncChmodFromBoxes()" /> L</label></div>
-              <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-o-w" onchange="syncChmodFromBoxes()" /> E</label></div>
-              <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-o-x" onchange="syncChmodFromBoxes()" /> X</label></div>
-            </div>
+        <div class="control-retirer-monitor-row">
+          <div class="control-card">
+            <h3>Retirer un fichier de la liste</h3>
+            <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
+            <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
+            <button type="button" class="btn-control" onclick="ctlRemoveFile()">Retirer</button>
           </div>
-          <button type="button" class="btn-control primary" onclick="ctlChmod()">Appliquer changement</button>
-        </div>
-        <div class="control-card control-card--monitor">
-          <h3>Lancer la surveillance (terminal intégré)</h3>
-          <p class="control-hint">Démarre un thread <code>start_monitor</code>. Si la surveillance tourne déjà (ex. lancement avec le panel), les alertes peuvent être dupliquées.</p>
-          <div class="control-row">
-            <label class="control-hint" for="ctl-monitor-interval">Intervalle (s)</label>
-            <input class="control-input mono" id="ctl-monitor-interval" type="number" min="1" max="3600" value="1" style="max-width:88px;" />
+          <div class="control-card control-card--monitor">
+            <h3>Surveillance (terminal intégré)</h3>
+            <p class="control-hint" title="Démarre un thread start_monitor. Si la surveillance tourne déjà, les alertes peuvent être dupliquées.">Thread <code>start_monitor</code> — doublons possibles si déjà actif.</p>
+            <div class="control-row">
+              <label class="control-hint" for="ctl-monitor-interval" style="margin:0;">Intervalle (s)</label>
+              <input class="control-input mono" id="ctl-monitor-interval" type="number" min="1" max="3600" value="1" style="max-width:88px;" />
+            </div>
+            <button type="button" class="btn-control primary" onclick="ctlStartMonitor()">Lancer</button>
           </div>
-          <button type="button" class="btn-control primary" onclick="ctlStartMonitor()">Lancer la surveillance</button>
         </div>
+        <div class="control-chmod-danger-row">
+          <div class="control-card control-card--chmod">
+            <h3>Modifier les permissions</h3>
+            <p class="control-hint">Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme. Le mode se met à jour selon le fichier choisi.</p>
+            <select class="control-select mono" id="ctl-chmod-select" onchange="syncChmodFieldsFromSelection()"><option value="">— Fichier —</option></select>
+            <div class="chmod-matrix-wrap">
+              <div class="chmod-octal-row control-row">
+                <label class="control-hint" for="ctl-chmod-mode" style="margin:0;">Mode octal</label>
+                <input class="control-input mono" id="ctl-chmod-mode" type="text" placeholder="644" maxlength="4" inputmode="numeric" style="max-width:88px;" value="644" oninput="syncChmodFromOctalInput()" />
+                <span class="control-hint" id="chmod-mode-hint" style="margin:0;">→ rw-r--r--</span>
+              </div>
+              <div class="chmod-matrix" role="group" aria-label="Permissions par catégorie">
+                <div class="chmod-matrix-head"></div>
+                <div class="chmod-matrix-head">Lecture</div>
+                <div class="chmod-matrix-head">Écriture</div>
+                <div class="chmod-matrix-head">Exécution</div>
+                <div class="chmod-row-label">Propriétaire</div>
+                <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-u-r" onchange="syncChmodFromBoxes()" /> L</label></div>
+                <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-u-w" onchange="syncChmodFromBoxes()" /> E</label></div>
+                <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-u-x" onchange="syncChmodFromBoxes()" /> X</label></div>
+                <div class="chmod-row-label">Groupe</div>
+                <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-g-r" onchange="syncChmodFromBoxes()" /> L</label></div>
+                <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-g-w" onchange="syncChmodFromBoxes()" /> E</label></div>
+                <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-g-x" onchange="syncChmodFromBoxes()" /> X</label></div>
+                <div class="chmod-row-label">Autres</div>
+                <div class="chmod-cell"><label title="Lecture"><input type="checkbox" id="ctl-chmod-o-r" onchange="syncChmodFromBoxes()" /> L</label></div>
+                <div class="chmod-cell"><label title="Écriture (modifier le fichier)"><input type="checkbox" id="ctl-chmod-o-w" onchange="syncChmodFromBoxes()" /> E</label></div>
+                <div class="chmod-cell"><label title="Exécution"><input type="checkbox" id="ctl-chmod-o-x" onchange="syncChmodFromBoxes()" /> X</label></div>
+              </div>
+            </div>
+            <button type="button" class="btn-control primary" onclick="ctlChmod()">Appliquer changement</button>
+          </div>
+          <div class="control-card control-card--danger-reset">
+            <h3>Supprimer toute la configuration</h3>
+            <p class="control-hint">Réinitialise dossier ciblé, liste et mode.</p>
+            <button type="button" class="btn-control danger" onclick="openConfirmRemoveWatch()">Supprimer la configuration</button>
+          </div>
         </div>
       </div>
     </div>
@@ -916,7 +1031,6 @@
 <div id="discord-overlay" class="overlay" onclick="handleDiscordOverlay(event)">
   <div id="discord-modal">
     <div class="discord-header">
-      <span style="font-size:20px">🔔</span>
       <h3>Notifications Discord</h3>
       <div class="modal-close" onclick="closeDiscordModal()">✕</div>
     </div>
@@ -929,12 +1043,11 @@
       <div class="form-group">
         <label class="form-label">URL du panel (lien dans le message Discord)</label>
         <input class="form-input" id="discord-panel-url" type="text" placeholder="http://192.168.1.68:5000" />
-        <span class="form-hint">L'URL que vos collègues utiliseront pour accéder au panel</span>
       </div>
     </div>
     <div class="discord-footer">
-      <button class="btn-test" onclick="testDiscord()">🧪 Tester</button>
-      <button class="btn-save" onclick="saveDiscordConfig()">💾 Enregistrer</button>
+      <button type="button" class="btn-discord-footer" onclick="testDiscord()">Tester</button>
+      <button type="button" class="btn-discord-footer btn-discord-footer--primary" onclick="saveDiscordConfig()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -1442,7 +1555,10 @@ async function refreshControlStatus(forceRefresh) {
     applySnapshotToSelects(cachedControlSnapshot);
     return;
   }
-  pre.textContent = 'Chargement…';
+  /* Ne pas vider le JSON si un état existe : évite le saut de mise en page au clic sur Actualiser */
+  if (cachedControlSnapshot == null) {
+    pre.textContent = 'Chargement…';
+  }
   const res = await fetch('/api/control/status', { credentials: 'same-origin' });
   if (res.status === 401) { window.location.href = '/login'; return; }
   const snap = await res.json();
