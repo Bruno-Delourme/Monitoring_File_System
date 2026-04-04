@@ -97,6 +97,50 @@
       color: var(--text);
       font-size: 14px;
     }
+    .password-field {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .password-field input {
+      margin-bottom: 0;
+      padding-right: 48px;
+    }
+    .password-reveal {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      transition: color 0.15s, background 0.15s;
+    }
+    .password-reveal:hover {
+      color: var(--blue-soft);
+      background: rgba(37, 99, 235, 0.12);
+    }
+    .password-reveal:active {
+      color: #bfdbfe;
+      background: rgba(37, 99, 235, 0.22);
+    }
+    .password-reveal-hint {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin: -10px 0 14px;
+      line-height: 1.4;
+    }
     input:focus {
       outline: none;
       border-color: rgba(96, 165, 250, 0.65);
@@ -167,7 +211,17 @@
         <input id="username" name="username" type="text" autocomplete="username" required autofocus />
 
         <label for="password">Mot de passe</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <div class="password-field">
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <button
+            type="button"
+            class="password-reveal"
+            id="password-reveal"
+            aria-label="Afficher le mot de passe (maintenir le clic)"
+            title="Maintenir le clic pour afficher le mot de passe"
+          >👁</button>
+        </div>
+        <p class="password-reveal-hint">Maintenez le clic (ou le doigt) sur l’icône pour afficher le mot de passe ; relâchez pour le masquer.</p>
 
         <button type="submit">Se connecter</button>
       </form>
@@ -175,5 +229,38 @@
       <p class="hint">Accès réservé aux administrateurs référencés dans la base du projet. En cas de problème, contactez Tessa et dites « Pull ».</p>
     </div>
   </div>
+  <script>
+    (function () {
+      var input = document.getElementById('password');
+      var btn = document.getElementById('password-reveal');
+      if (!input || !btn) return;
+
+      function showPassword() {
+        input.type = 'text';
+      }
+      function hidePassword() {
+        input.type = 'password';
+      }
+
+      btn.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        showPassword();
+      });
+      btn.addEventListener('mouseup', hidePassword);
+      btn.addEventListener('mouseleave', hidePassword);
+
+      btn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        showPassword();
+      }, { passive: false });
+      btn.addEventListener('touchend', hidePassword);
+      btn.addEventListener('touchcancel', hidePassword);
+
+      document.addEventListener('mouseup', hidePassword);
+      /* Bubble (pas capture) : sinon le relâchement sur le bouton masque avant la fin du geste. */
+      document.addEventListener('touchend', hidePassword);
+    })();
+  </script>
 </body>
 </html>
