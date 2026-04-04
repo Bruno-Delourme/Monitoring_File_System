@@ -1,0 +1,52 @@
+/* D-DIN — polices dans /static/fonts/ (ne pas déplacer sans mettre à jour les url) */
+@font-face {
+  font-family: 'D-DIN';
+  src: url('../fonts/D-DIN.eot');
+  src: url('../fonts/D-DIN.eot?#iefix') format('embedded-opentype'),
+       url('../fonts/D-DIN.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'D-DIN';
+  src: url('../fonts/D-DIN-Bold.eot');
+  src: url('../fonts/D-DIN-Bold.eot?#iefix') format('embedded-opentype'),
+       url('../fonts/D-DIN-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'D-DIN';
+  src: url('../fonts/D-DIN-Italic.eot');
+  src: url('../fonts/D-DIN-Italic.eot?#iefix') format('embedded-opentype'),
+       url('../fonts/D-DIN-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'D-DIN Condensed';
+  src: url('../fonts/D-DINCondensed.eot');
+  src: url('../fonts/D-DINCondensed.eot?#iefix') format('embedded-opentype'),
+       url('../fonts/D-DINCondensed.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'D-DIN Condensed';
+  src: url('../fonts/D-DINCondensed-Bold.eot');
+  src: url('../fonts/D-DINCondensed-Bold.eot?#iefix') format('embedded-opentype'),
+       url('../fonts/D-DINCondensed-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: 'D-DIN', 'Segoe UI', system-ui, sans-serif;
+  --font-ui-condensed: 'D-DIN Condensed', 'D-DIN', 'Segoe UI', system-ui, sans-serif;
+}

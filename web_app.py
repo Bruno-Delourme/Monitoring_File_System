@@ -6,6 +6,7 @@ Utilise Flask + Server-Sent Events (SSE) pour les notifications live.
 
 import os
 import json
+import logging
 import time
 from datetime import datetime
 import queue
@@ -55,6 +56,28 @@ app.secret_key = _get_secret_key()
 # Cookie de session uniquement : fermer le navigateur invalide la session (pas de persistance 8h).
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Werkzeug : ne pas journaliser chaque GET /api/control/status 200 (poll onglet config) — au plus une ligne / h.
+_werkzeug_status_200_last_log: float = 0.0
+
+
+class _WerkzeugThrottleControlStatus200Filter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        global _werkzeug_status_200_last_log
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+        if "GET /api/control/status" not in msg or " 200" not in msg:
+            return True
+        now = time.time()
+        if now - _werkzeug_status_200_last_log < 3600.0:
+            return False
+        _werkzeug_status_200_last_log = now
+        return True
+
+
+logging.getLogger("werkzeug").addFilter(_WerkzeugThrottleControlStatus200Filter())
 
 LOG_FILE          = os.path.join(_BASE_DIR, "logs", "monitor.log")
 DISCORD_CFG_FILE  = os.path.join(_BASE_DIR, "discord_config.json")

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
   <title>Surveillance Fichiers — Logs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/din-fonts.css') }}" />
   <style>
     /* ── Variables ──────────────────────────────────────────── */
     :root {
@@ -34,7 +35,7 @@
       height: 100%;
       max-height: 100%;
       overflow: hidden;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: var(--font-ui);
       background: var(--bg);
       color: var(--text);
       display: flex;
@@ -64,6 +65,7 @@
       z-index: 100;
     }
     .header-badge {
+      font-family: var(--font-ui-condensed);
       background: var(--red);
       color: #fff;
       font-size: 10px;
@@ -78,6 +80,7 @@
 
     /* ── Status pill ─────────────────────────────────────────── */
     #status-pill {
+      font-family: var(--font-ui);
       display: flex; align-items: center; gap: 7px;
       padding: 5px 12px; border-radius: 20px;
       font-size: 12px; font-weight: 600; letter-spacing: .3px;
@@ -100,6 +103,7 @@
 
     /* ── Header actions (même logique que #status-pill : bordure + couleur + léger halo) ── */
     .header-btn {
+      font-family: var(--font-ui);
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -136,6 +140,18 @@
       color: #fef2f2;
       background: rgba(220, 38, 38, 0.26);
       box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.3), 0 0 18px rgba(220, 38, 38, 0.25);
+    }
+    /* Icône seule (Lucide « power », ISC — https://lucide.dev/icons/power) */
+    .header-btn-logout.header-btn-logout--icon {
+      padding: 8px;
+      min-width: 40px;
+      justify-content: center;
+    }
+    .header-btn-logout.header-btn-logout--icon .header-logout-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      display: block;
     }
 
     /* ── Main ────────────────────────────────────────────────── */
@@ -180,7 +196,10 @@
       display: flex; flex-direction: column; gap: 3px; transition: border-color .2s;
     }
     .stat-card:hover { border-color: #444; }
-    .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+    .stat-label {
+      font-family: var(--font-ui-condensed);
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+    }
     .stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
     .stat-card.total .stat-value { color: var(--text); }
     .stat-card.info  .stat-value { color: var(--purple); }
@@ -197,6 +216,7 @@
     }
     .filter-group { display: flex; gap: 5px; }
     .btn {
+      font-family: var(--font-ui);
       padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
       background: var(--surface); color: var(--muted);
       font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: .4px; transition: all .15s;
@@ -322,7 +342,7 @@
     .modal-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
     .modal-title-wrap { flex: 1; min-width: 0; }
     .modal-title {
-      font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; font-weight: 700;
+      font-family: var(--font-ui); font-size: 13.5px; font-weight: 700;
       color: var(--red-soft); line-height: 1.45; word-break: break-word;
     }
     .modal-title .modal-title-stack { display: flex; flex-direction: column; gap: 8px; }
@@ -520,6 +540,7 @@
       flex-shrink: 0;
     }
     .main-tab {
+      font-family: var(--font-ui-condensed);
       padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--surface2); color: var(--muted); font-size: 13px; font-weight: 600;
       cursor: pointer; transition: all .15s;
@@ -536,6 +557,7 @@
       padding: 14px 16px;
     }
     .control-status-card h2 {
+      font-family: var(--font-ui-condensed);
       font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
       font-weight: 800; margin: 0 0 8px 0;
     }
@@ -564,10 +586,10 @@
       min-width: 0;
     }
     .control-card h3 {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      font-family: var(--font-ui-condensed);
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #fff;
       font-weight: 800; margin: 0;
     }
-    .control-card .num { color: var(--purple); font-weight: 700; margin-right: 6px; }
     .control-input, .control-select {
       width: 100%; padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border);
       border-radius: 6px; color: var(--text); font-size: 12.5px; font-family: inherit;
@@ -576,6 +598,7 @@
     .control-select { cursor: pointer; }
     .control-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .btn-control {
+      font-family: var(--font-ui);
       padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
       background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 600;
       cursor: pointer; transition: all .15s;
@@ -615,6 +638,7 @@
       box-sizing: border-box;
     }
     .chmod-matrix-head {
+      font-family: var(--font-ui-condensed);
       font-size: 10px; text-transform: uppercase; letter-spacing: .55px;
       color: var(--muted); font-weight: 700; text-align: center;
     }
@@ -659,7 +683,13 @@
     <em>journal &amp; configuration</em>
   </div>
   <button type="button" class="header-btn header-btn-discord" onclick="openDiscordModal()" title="Webhook Discord : rappel toutes les 3 h (sans alertes fichiers)">⚙ Discord</button>
-  <a class="header-btn header-btn-logout" href="/logout" title="Se déconnecter">Déconnexion</a>
+  <a class="header-btn header-btn-logout header-btn-logout--icon" href="/logout" title="Se déconnecter" aria-label="Se déconnecter">
+    <!-- Lucide « power » (ISC) — https://lucide.dev/icons/power -->
+    <svg class="header-logout-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2v10" />
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+    </svg>
+  </a>
   <div id="status-pill" class="connecting">
     <div class="dot"></div>
     <span id="status-text">Connexion…</span>
@@ -718,45 +748,45 @@
       <div class="control-status-card">
         <div class="control-row" style="justify-content:space-between;align-items:center;">
           <h2 style="margin:0;">Configuration actuelle</h2>
-          <button type="button" class="btn-control primary" onclick="refreshControlStatus()">Actualiser</button>
+          <button type="button" class="btn-control primary" onclick="refreshControlStatus(true)" title="Recharge l’état depuis le serveur (ignore le délai d’économie des requêtes)">Actualiser</button>
         </div>
         <pre id="control-status-json">Chargement…</pre>
       </div>
       <div class="control-grid">
         <div class="control-card">
-          <h3><span class="num">1</span>Cibler un dossier (tous les fichiers)</h3>
+          <h3>Cibler un dossier (tous les fichiers)</h3>
           <p class="control-hint">Surveille tous les fichiers du dossier (non récursif).</p>
           <input class="control-input mono" id="ctl-setup-all-dir" type="text" placeholder="/chemin/vers/dossier" />
           <button type="button" class="btn-control primary" onclick="ctlSetupAll()">Enregistrer</button>
         </div>
         <div class="control-card">
-          <h3><span class="num">2</span>Cibler un fichier (chemin complet)</h3>
+          <h3>Cibler un fichier (chemin complet)</h3>
           <p class="control-hint">Chemin absolu obligatoire.</p>
           <input class="control-input mono" id="ctl-setup-file-path" type="text" placeholder="/home/user/fichier.txt" />
           <button type="button" class="btn-control primary" onclick="ctlSetupFile()">Enregistrer</button>
         </div>
         <div class="control-card">
-          <h3><span class="num">3</span>Ajouter un fichier (mode liste ciblée)</h3>
+          <h3>Ajouter un fichier (mode liste ciblée)</h3>
           <p class="control-hint">Nom du fichier seul (dans le dossier déjà ciblé).</p>
           <input class="control-input mono" id="ctl-add-filename" type="text" placeholder="ex. notes.txt" />
           <button type="button" class="btn-control primary" onclick="ctlAddFile()">Ajouter</button>
         </div>
         <div class="control-card">
-          <h3><span class="num">4</span>Retirer un fichier de la liste</h3>
+          <h3>Retirer un fichier de la liste</h3>
           <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
           <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
           <button type="button" class="btn-control" onclick="ctlRemoveFile()">Retirer</button>
         </div>
         <div class="control-card">
-          <h3><span class="num">5</span>Supprimer toute la configuration</h3>
+          <h3>Supprimer toute la configuration</h3>
           <p class="control-hint">Réinitialise complètement la surveillance.</p>
           <button type="button" class="btn-control danger" onclick="openConfirmRemoveWatch()">Supprimer la configuration</button>
         </div>
         <div class="control-chmod-monitor-row">
         <div class="control-card control-card--chmod">
-          <h3><span class="num">7</span>Modifier les permissions (chmod)</h3>
-          <p class="control-hint">Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme.</p>
-          <select class="control-select mono" id="ctl-chmod-select"><option value="">— Fichier —</option></select>
+          <h3>Modifier les permissions</h3>
+          <p class="control-hint">Saisissez un mode octal (ex. 644) ou cochez Lecture / Écriture / Exécution — les deux restent synchronisés. Écriture = modifier le contenu du fichier ; exécution = lancer comme programme. Le mode se met à jour selon le fichier choisi.</p>
+          <select class="control-select mono" id="ctl-chmod-select" onchange="syncChmodFieldsFromSelection()"><option value="">— Fichier —</option></select>
           <div class="chmod-matrix-wrap">
             <div class="chmod-octal-row control-row">
               <label class="control-hint" for="ctl-chmod-mode" style="margin:0;">Mode octal</label>
@@ -785,7 +815,7 @@
           <button type="button" class="btn-control primary" onclick="ctlChmod()">Appliquer changement</button>
         </div>
         <div class="control-card control-card--monitor">
-          <h3><span class="num">8</span>Lancer la surveillance (terminal intégré)</h3>
+          <h3>Lancer la surveillance (terminal intégré)</h3>
           <p class="control-hint">Démarre un thread <code>start_monitor</code>. Si la surveillance tourne déjà (ex. lancement avec le panel), les alertes peuvent être dupliquées.</p>
           <div class="control-row">
             <label class="control-hint" for="ctl-monitor-interval">Intervalle (s)</label>
@@ -1234,7 +1264,7 @@ function switchMainTab(which) {
     tctl.classList.add('active');
     tlogs.setAttribute('aria-selected', 'false');
     tctl.setAttribute('aria-selected', 'true');
-    refreshControlStatus();
+    refreshControlStatus(false);
   }
 }
 
@@ -1267,7 +1297,48 @@ async function ctlPost(url, body) {
   return { res, data };
 }
 
+/** Dernier snapshot configuration (pour mode octal chmod selon le fichier choisi). */
+let lastControlSnapshot = null;
+/** Cache GET /api/control/status : évite un appel à chaque ouverture d’onglet (bruit Werkzeug / charge). */
+let cachedControlSnapshot = null;
+let lastControlStatusFetchAt = 0;
+const CONTROL_STATUS_FETCH_MIN_MS = 60 * 60 * 1000;
+
+/** Convertit le mode renvoyé par l'API (ex. "0o644") en 3 chiffres pour le champ octal. */
+function normalizeSnapshotModeToOctalField(modeVal) {
+  if (modeVal == null || modeVal === '') return null;
+  let s = String(modeVal).trim().replace(/^0o/i, '');
+  s = s.replace(/[^0-7]/g, '');
+  if (!s.length) return null;
+  if (s.length > 3) s = s.slice(-3);
+  return s;
+}
+
+/** Met à jour champ octal + cases selon le fichier sélectionné dans la liste chmod. */
+function syncChmodFieldsFromSelection() {
+  const ch = document.getElementById('ctl-chmod-select');
+  const inp = document.getElementById('ctl-chmod-mode');
+  if (!ch || !inp) return;
+  const name = (ch.value || '').trim();
+  if (!name || !lastControlSnapshot || !lastControlSnapshot.files) return;
+  const f = lastControlSnapshot.files.find(x => x.name === name);
+  if (!f || f.status === 'absent' || f.exists === false || f.mode == null) return;
+  const oct = normalizeSnapshotModeToOctalField(f.mode);
+  if (!oct) return;
+  inp.value = oct;
+  syncChmodFromOctalInput();
+}
+
+/** Met à jour le JSON, les listes et le cache (après fetch ou action POST). */
+function setControlStatusViewAndCache(snap) {
+  document.getElementById('control-status-json').textContent = JSON.stringify(snap, null, 2);
+  applySnapshotToSelects(snap);
+  cachedControlSnapshot = snap;
+  lastControlStatusFetchAt = Date.now();
+}
+
 function applySnapshotToSelects(snap) {
+  lastControlSnapshot = snap && typeof snap === 'object' ? snap : null;
   const rm = document.getElementById('ctl-remove-select');
   const ch = document.getElementById('ctl-chmod-select');
   const prevRm = rm.value;
@@ -1288,16 +1359,26 @@ function applySnapshotToSelects(snap) {
   }
   if ([...rm.options].some(o => o.value === prevRm)) rm.value = prevRm;
   if ([...ch.options].some(o => o.value === prevCh)) ch.value = prevCh;
+  syncChmodFieldsFromSelection();
 }
 
-async function refreshControlStatus() {
+async function refreshControlStatus(forceRefresh) {
   const pre = document.getElementById('control-status-json');
+  const now = Date.now();
+  if (
+    !forceRefresh
+    && cachedControlSnapshot != null
+    && (now - lastControlStatusFetchAt) < CONTROL_STATUS_FETCH_MIN_MS
+  ) {
+    pre.textContent = JSON.stringify(cachedControlSnapshot, null, 2);
+    applySnapshotToSelects(cachedControlSnapshot);
+    return;
+  }
   pre.textContent = 'Chargement…';
   const res = await fetch('/api/control/status', { credentials: 'same-origin' });
   if (res.status === 401) { window.location.href = '/login'; return; }
   const snap = await res.json();
-  pre.textContent = JSON.stringify(snap, null, 2);
-  applySnapshotToSelects(snap);
+  setControlStatusViewAndCache(snap);
 }
 
 async function ctlSetupAll() {
@@ -1306,10 +1387,7 @@ async function ctlSetupAll() {
   const out = await ctlPost('/api/control/setup-all', { directory });
   if (!out) return;
   const { res, data } = out;
-  if (data.snapshot) {
-    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
-    applySnapshotToSelects(data.snapshot);
-  }
+  if (data.snapshot) setControlStatusViewAndCache(data.snapshot);
   if (res.ok && data.ok) ctlFeedback('Dossier ciblé — configuration mise à jour.', true);
   else ctlFeedback(data.error || 'Échec de la configuration.', false);
 }
@@ -1320,10 +1398,7 @@ async function ctlSetupFile() {
   const out = await ctlPost('/api/control/setup-file', { path });
   if (!out) return;
   const { res, data } = out;
-  if (data.snapshot) {
-    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
-    applySnapshotToSelects(data.snapshot);
-  }
+  if (data.snapshot) setControlStatusViewAndCache(data.snapshot);
   if (res.ok && data.ok) ctlFeedback('Fichier ciblé — configuration mise à jour.', true);
   else ctlFeedback(data.error || 'Échec.', false);
 }
@@ -1334,10 +1409,7 @@ async function ctlAddFile() {
   const out = await ctlPost('/api/control/add-file', { filename });
   if (!out) return;
   const { res, data } = out;
-  if (data.snapshot) {
-    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
-    applySnapshotToSelects(data.snapshot);
-  }
+  if (data.snapshot) setControlStatusViewAndCache(data.snapshot);
   if (res.ok && data.ok) ctlFeedback('Fichier ajouté à la liste.', true);
   else ctlFeedback(data.error || 'Échec.', false);
 }
@@ -1350,10 +1422,7 @@ async function ctlRemoveFile() {
   const out = await ctlPost('/api/control/remove-file', { filename });
   if (!out) return;
   const { res, data } = out;
-  if (data.snapshot) {
-    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
-    applySnapshotToSelects(data.snapshot);
-  }
+  if (data.snapshot) setControlStatusViewAndCache(data.snapshot);
   if (res.ok && data.ok) ctlFeedback('Fichier retiré de la liste.', true);
   else ctlFeedback(data.error || 'Échec.', false);
 }
@@ -1364,10 +1433,7 @@ async function ctlRemoveWatchConfirm() {
   const out = await ctlPost('/api/control/remove-watch', {});
   if (!out) return;
   const { res, data } = out;
-  if (data.snapshot) {
-    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
-    applySnapshotToSelects(data.snapshot);
-  }
+  if (data.snapshot) setControlStatusViewAndCache(data.snapshot);
   if (res.ok && data.ok) ctlFeedback('Configuration supprimée.', true);
   else ctlFeedback(data.error || 'Échec.', false);
 }
@@ -1462,8 +1528,7 @@ async function ctlChmod() {
   if (!out) return;
   const { res, data } = out;
   if (data.snapshot) {
-    document.getElementById('control-status-json').textContent = JSON.stringify(data.snapshot, null, 2);
-    applySnapshotToSelects(data.snapshot);
+    setControlStatusViewAndCache(data.snapshot);
   }
   if (res.ok && data.ok) ctlFeedback('Permissions modifiées.', true);
   else ctlFeedback(data.error || 'chmod impossible.', false);
