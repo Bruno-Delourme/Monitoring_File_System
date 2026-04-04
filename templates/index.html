@@ -103,14 +103,31 @@
     .header-title { font-size: 22px; font-weight: 700; line-height: 1.2; }
 
     /* ── Status pill ─────────────────────────────────────────── */
+    /* Même gabarit que .header-btn (ex. Discord) : padding, typo, rayon */
     #status-pill {
       font-family: var(--font-ui);
-      display: flex; align-items: center; gap: 7px;
-      padding: 5px 12px; border-radius: 20px;
-      font-size: 14px; font-weight: 600; letter-spacing: .3px;
-      background: var(--surface2); border: 1px solid var(--border); transition: all .3s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.25px;
+      line-height: 1.2;
+      box-sizing: border-box;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      transition: all 0.3s;
     }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background .3s; }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
     /* Jaune : en attente de flux SSE (connexion / reconnexion) */
     #status-pill.connecting {
       border-color: rgba(250, 204, 21, 0.65);
@@ -221,9 +238,11 @@
     #panel-control {
       flex: 1;
       min-height: 0;
-      overflow-y: auto;
+      overflow: hidden;
       overflow-x: hidden;
       scrollbar-gutter: stable;
+      display: flex;
+      flex-direction: column;
     }
     /* Même largeur utile et centrage que l’onglet Configuration */
     #panel-logs,
@@ -231,6 +250,13 @@
       max-width: 1040px;
       width: 100%;
       margin: 0 auto;
+    }
+    #panel-control .control-layout {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
     }
 
     /* ── Stats ───────────────────────────────────────────────── */
@@ -390,14 +416,37 @@
       border-bottom: 1px solid var(--border);
       background: #0f0808;
     }
-    .modal-icon { font-size: 19px; flex-shrink: 0; margin-top: 2px; }
+    .modal-icon {
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Lucide « siren » (ISC) — https://lucide.dev/icons/siren */
+    .modal-icon-siren {
+      width: 28px;
+      height: 28px;
+      color: #f87171;
+      stroke: currentColor;
+      filter:
+        drop-shadow(0 0 4px rgba(248, 113, 113, 0.95))
+        drop-shadow(0 0 12px rgba(220, 38, 38, 0.65))
+        drop-shadow(0 0 22px rgba(185, 28, 28, 0.45));
+    }
     .modal-title-wrap { flex: 1; min-width: 0; }
     .modal-title {
       font-family: var(--font-ui); font-size: 15.5px; font-weight: 700;
       color: var(--red-soft); line-height: 1.45; word-break: break-word;
     }
     .modal-title .modal-title-stack { display: flex; flex-direction: column; gap: 8px; }
-    .modal-title .modal-title-line1 { font-family: 'Cascadia Code', monospace; font-size: 14.5px; font-weight: 600; }
+    .modal-title .modal-title-line1 {
+      font-family: 'Cascadia Code', monospace;
+      font-size: 14.5px;
+      font-weight: 600;
+      text-align: center;
+      width: 100%;
+    }
     .modal-title-meta { font-size: 15px; color: var(--text); line-height: 1.4; }
     .modal-title-label {
       display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .85px;
@@ -808,17 +857,21 @@
     }
     .control-hint { font-size: 14px; color: var(--muted); line-height: 1.45; margin: 0; }
     /*
-      Bandeau de feedback : hauteur plafonnée + min-height:0 pour le flex
-      (sinon min-height:auto laisse le bloc grandir avec le texte et repousse tout le panneau).
+      Hauteur du bandeau : 90 % de la hauteur du panneau config (min 40 px, max 120 px).
+      #panel-control + .control-layout en colonne flex fournissent la référence pour le %.
     */
     .control-feedback-slot {
-      flex: 0 0 40px;
-      height: 40px;
-      max-height: 40px;
-      min-height: 0;
-      margin-bottom: 6px;
+      flex: 0 0 auto;
+      height: 90%;
+      min-height: 40px;
+      max-height: 120px;
+      margin-bottom: 0;
       overflow: hidden;
       box-sizing: border-box;
+    }
+    /* Moins d’air uniquement entre la bannière feedback et « Configuration actuelle » (évite le débordement du panneau) */
+    .control-feedback-slot + .control-status-card {
+      margin-top: -12px;
     }
     #control-feedback {
       font-size: 12.5px;
@@ -1072,7 +1125,18 @@
 <div id="alert-overlay" class="overlay" onclick="handleAlertOverlay(event)">
   <div id="modal">
     <div class="modal-header">
-      <div class="modal-icon">🚨</div>
+      <div class="modal-icon" aria-hidden="true">
+        <svg class="modal-icon-siren" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 18v-6a5 5 0 1 1 10 0v6" />
+          <path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z" />
+          <path d="M21 12h1" />
+          <path d="M18.5 4.5 18 5" />
+          <path d="M2 12h1" />
+          <path d="M12 2v1" />
+          <path d="m4.929 4.929.707.707" />
+          <path d="M12 12v6" />
+        </svg>
+      </div>
       <div class="modal-title-wrap">
         <div class="modal-title" id="modal-title"></div>
         <div class="modal-ts"   id="modal-ts"></div>
@@ -1128,7 +1192,7 @@
 
 <!-- ── Toast container ────────────────────────────────────── -->
 <div id="toast-container"></div>
-<button id="scroll-btn" onclick="scrollToBottom()">↓ Nouveaux logs</button>
+<button id="scroll-btn" onclick="scrollToNewLogs()" type="button">↓ Nouveaux logs</button>
 
 <script>
 /* ─────────────────────────────────────────────────────────────
@@ -1817,6 +1881,17 @@ function buildEntry(log, isNew = false) {
   return div;
 }
 
+const _LEVEL_RANK = { ERROR: 3, WARNING: 2, INFO: 1 };
+function mergePendingNewLogLevel(level) {
+  const L = normalizeUiLevel(level);
+  if (L !== 'INFO' && L !== 'WARNING' && L !== 'ERROR') return;
+  if (!pendingNewHighestLevel) {
+    pendingNewHighestLevel = L;
+    return;
+  }
+  if (_LEVEL_RANK[L] > _LEVEL_RANK[pendingNewHighestLevel]) pendingNewHighestLevel = L;
+}
+
 /* ─────────────────────────────────────────────────────────────
    State & render
    ───────────────────────────────────────────────────────────── */
@@ -1828,6 +1903,8 @@ let activeFilter = 'ALL';
 let autoScroll   = true;
 let userScrolled = false;
 let newWhileAway = 0;
+/** Niveau le plus « fort » parmi les logs arrivés pendant que l’utilisateur n’était pas en bas (pour le bouton ↓). */
+let pendingNewHighestLevel = null;
 
 const logList       = document.getElementById('log-list');
 const emptyState    = document.getElementById('empty-state');
@@ -1885,6 +1962,7 @@ function appendEntry(log) {
       scrollToBottom();
     } else {
       newWhileAway++;
+      mergePendingNewLogLevel(log.level);
       scrollBtn.style.display = 'block';
       scrollBtn.textContent   = `↓ ${newWhileAway} nouveau${newWhileAway > 1 ? 'x' : ''} log${newWhileAway > 1 ? 's' : ''}`;
     }
@@ -1929,8 +2007,26 @@ function applyFilters() { renderAll(); }
 
 function scrollToBottom() {
   logList.scrollTop = logList.scrollHeight;
-  userScrolled = false; newWhileAway = 0;
+  userScrolled = false;
+  newWhileAway = 0;
+  pendingNewHighestLevel = null;
   scrollBtn.style.display = 'none';
+}
+
+/** Clic sur le bouton rouge « nouveaux logs » : onglet Journal + filtre adapté (plus « Tous » si pertinent), puis bas de liste. */
+function scrollToNewLogs() {
+  const target = pendingNewHighestLevel;
+  pendingNewHighestLevel = null;
+  const logsPanel = document.getElementById('panel-logs');
+  if (logsPanel && logsPanel.classList.contains('panel-hidden')) {
+    switchMainTab('logs');
+  }
+  if (target && (target === 'INFO' || target === 'WARNING' || target === 'ERROR')) {
+    if (activeFilter === 'ALL' || activeFilter !== target) {
+      setFilter(target);
+    }
+  }
+  scrollToBottom();
 }
 function toggleAutoScroll() {
   autoScroll = !autoScroll;
@@ -1940,10 +2036,30 @@ function toggleAutoScroll() {
 logList.addEventListener('scroll', () => {
   const atBottom = logList.scrollHeight - logList.scrollTop <= logList.clientHeight + 20;
   if (!atBottom) { userScrolled = true; }
-  else { userScrolled = false; newWhileAway = 0; scrollBtn.style.display = 'none'; }
+  else {
+    userScrolled = false;
+    newWhileAway = 0;
+    pendingNewHighestLevel = null;
+    scrollBtn.style.display = 'none';
+  }
 });
 
-function clearDisplay() { allLogs = []; renderAll(); setStats({TOTAL:0,INFO:0,WARNING:0,ERROR:0}); }
+function clearDisplay() {
+  allLogs = [];
+  toastDedupe.clear();
+  const toasts = document.getElementById('toast-container');
+  if (toasts) toasts.replaceChildren();
+  const searchEl = document.getElementById('search');
+  if (searchEl) searchEl.value = '';
+  closeAlertModal();
+  lastUpdate.textContent = '—';
+  newWhileAway = 0;
+  pendingNewHighestLevel = null;
+  scrollBtn.style.display = 'none';
+  userScrolled = false;
+  setStats({ TOTAL: 0, INFO: 0, WARNING: 0, ERROR: 0 });
+  setFilter('ALL');
+}
 
 /* ─────────────────────────────────────────────────────────────
    Toasts
@@ -1993,7 +2109,12 @@ function showToast(log) {
     if (e.target.classList.contains('toast-close')) return;
     toast.remove();
     if (log.details && log.details.length > 0) openAlertModal(log);
-    else { setFilter('ALL'); scrollToBottom(); }
+    else {
+      const logsPanel = document.getElementById('panel-logs');
+      if (logsPanel && logsPanel.classList.contains('panel-hidden')) switchMainTab('logs');
+      if (level === 'INFO' || level === 'WARNING' || level === 'ERROR') setFilter(level);
+      scrollToBottom();
+    }
   });
   setTimeout(() => {
     if (!toast.isConnected) return;
