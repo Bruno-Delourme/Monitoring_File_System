@@ -1324,6 +1324,9 @@ function buildEntry(log, isNew = false) {
    State & render
    ───────────────────────────────────────────────────────────── */
 let allLogs      = [];
+/** Clés récentes pour éviter plusieurs toasts pour le même événement (SSE / doublons journal). */
+const toastDedupe = new Map();
+const TOAST_DEDUPE_MS = 5000;
 let activeFilter = 'ALL';
 let autoScroll   = true;
 let userScrolled = false;
@@ -1447,9 +1450,24 @@ function showSimpleToast(msg, type = 'info') {
   setTimeout(() => { if (toast.isConnected) { toast.style.animation='slideOut .25s ease forwards'; setTimeout(()=>toast.remove(),250); } }, 4000);
 }
 
+function toastDedupeKey(log) {
+  const ts = String(log.timestamp || '').split(',')[0].trim();
+  return `${log.level}|${ts}|${String(log.message || '').trim()}`;
+}
+
 function showToast(log) {
   const level = log.level;
   if (level === 'INFO' && !log.message.includes('[DÉTECTION]') && !log.message.includes('[DETECTION]')) return;
+  const tKey = toastDedupeKey(log);
+  const now = Date.now();
+  const prev = toastDedupe.get(tKey);
+  if (prev !== undefined && now - prev < TOAST_DEDUPE_MS) return;
+  toastDedupe.set(tKey, now);
+  if (toastDedupe.size > 120) {
+    for (const [k, t] of toastDedupe) {
+      if (now - t > TOAST_DEDUPE_MS * 3) toastDedupe.delete(k);
+    }
+  }
   const icons = { INFO:'ℹ️', WARNING:'⚠️', ERROR:'🚨' };
   const cls   = { INFO:'info', WARNING:'warn', ERROR:'error' };
   const toast = document.createElement('div');

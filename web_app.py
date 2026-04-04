@@ -170,14 +170,23 @@ def _translate_detail_for_discord(detail: str) -> str:
     return text
 
 
+_discord_webhook_warn_at: float = 0.0
+DISCORD_WEBHOOK_WARN_COOLDOWN_SEC = 20.0
+
+
 def send_discord_alert(entry: dict) -> None:
     """Envoie une notification Discord pour une alerte groupee."""
+    global _discord_webhook_warn_at
+
     cfg = load_discord_config()
     webhook_url = cfg.get("webhook_url", "").strip()
     panel_url   = cfg.get("panel_url", DEFAULT_PANEL_URL).strip()
 
     if not webhook_url:
-        app.logger.warning("Discord non configure: webhook absent")
+        now = time.monotonic()
+        if now - _discord_webhook_warn_at >= DISCORD_WEBHOOK_WARN_COOLDOWN_SEC:
+            _discord_webhook_warn_at = now
+            app.logger.warning("Discord non configure: webhook absent")
         return
 
     msg       = entry.get("message", "")
@@ -301,6 +310,27 @@ def group_logs(parsed_lines: list) -> list:
     return groups
 
 
+def _dedupe_alert_broadcasts(groups: list) -> list:
+    """
+    Une même modification peut produire deux lignes [ALERTE] quasi identiques dans le journal.
+    On ne diffuse qu'une seule entrée par (horodatage à la seconde, message d'alerte).
+    """
+    seen = set()
+    out = []
+    for g in groups:
+        msg = g.get("message") or ""
+        if "[ALERTE]" not in msg and "[CRITIQUE]" not in msg:
+            out.append(g)
+            continue
+        ts = (g.get("timestamp") or "").split(",")[0].strip()
+        key = (ts, msg.strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(g)
+    return out
+
+
 # ── SSE broadcast ─────────────────────────────────────────────────────────────
 
 def _broadcast(data: str) -> None:
@@ -351,7 +381,7 @@ def tail_log() -> None:
                             last_size = current_size2
                             parsed += [p for line in more if (p := parse_log_line(line))]
 
-                    for entry in group_logs(parsed):
+                    for entry in _dedupe_alert_broadcasts(group_logs(parsed)):
                         _broadcast(json.dumps(entry))
                         if "[ALERTE]" in entry.get("message", "") or "[CRITIQUE]" in entry.get(
                             "message", ""

@@ -11,6 +11,7 @@ import json
 import time
 import argparse
 import subprocess
+import threading
 
 # Imports watchdog pour la surveillance du système de fichiers
 from watchdog.observers import Observer
@@ -28,6 +29,9 @@ from utils.logger import (
 
 # Fichier de configuration JSON pour stocker les paramètres de surveillance
 CONFIG_FILE = "config.json"
+
+# Évite deux alertes pour le même changement (watchdog + scan périodique, ou double événement OS).
+_compare_alert_lock = threading.Lock()
 
 # Si True, aucune alerte n'est émise quand le contenu du fichier change
 # (mtime / sha256). Les changements de "droits" (mode/uid/gid) restent actifs.
@@ -868,6 +872,11 @@ class MonitorHandler(FileSystemEventHandler):
         if not self._is_monitored_file(path):
             return
 
+        with _compare_alert_lock:
+            self._compare_and_alert_locked(path)
+
+    def _compare_and_alert_locked(self, path):
+        """Corps de compare_and_alert — doit être appelé sous _compare_alert_lock."""
         # Charger la configuration et récupérer les métadonnées
         config = load_config()
         name = self._filename_from_path(path)
