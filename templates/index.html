@@ -36,7 +36,7 @@
       max-height: 100%;
       overflow: hidden;
       font-family: var(--font-ui);
-      font-size: 17px;
+      font-size: 18px;
       background: var(--bg);
       color: var(--text);
       display: flex;
@@ -52,7 +52,7 @@
         max-height: 100dvh;
       }
     }
-    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
@@ -257,6 +257,7 @@
       overflow-y: auto;
       overflow-x: hidden;
       scrollbar-gutter: stable;
+      scroll-behavior: auto;
     }
 
     /* ── Stats ───────────────────────────────────────────────── */
@@ -331,6 +332,7 @@
       overflow-y: auto;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
+      scroll-behavior: auto;
     }
 
     /* ── Log entry ───────────────────────────────────────────── */
@@ -341,7 +343,7 @@
       font-size: 14px;
       font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
       animation: fadeIn .2s ease;
-      cursor: default; transition: background .1s;
+      cursor: default; transition: background .05s ease-out;
     }
     .log-entry:hover { background: var(--surface2); }
     .log-entry.has-details { cursor: pointer; }
@@ -533,7 +535,7 @@
       background: var(--surface);
       border: 1px solid rgba(167, 139, 250, 0.38);
       border-radius: 10px;
-      width: min(460px, 93vw);
+      width: min(560px, 94vw);
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -553,12 +555,12 @@
     }
     .discord-header h3 {
       flex: 1;
-      font-size: 16px;
+      font-size: 19px;
       font-weight: 700;
-      color: #ede9fe;
+      color: #ffffff;
     }
     .discord-body {
-      padding: 16px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -566,19 +568,19 @@
     }
     .form-group { display: flex; flex-direction: column; gap: 5px; }
     .form-label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
-      color: #c4b5fd;
+      color: #f1f5f9;
       text-transform: uppercase;
       letter-spacing: .8px;
     }
     .form-input {
-      padding: 8px 12px;
+      padding: 10px 14px;
       background: var(--bg);
       border: 1px solid rgba(167, 139, 250, 0.28);
       border-radius: 6px;
-      color: var(--text);
-      font-size: 14.5px;
+      color: #f8fafc;
+      font-size: 16px;
       outline: none;
       transition: border-color .07s ease-out, box-shadow .07s ease-out;
     }
@@ -586,22 +588,22 @@
       border-color: rgba(196, 181, 253, 0.7);
       box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.28);
     }
-    .form-hint { font-size: 11.5px; color: #a78bfa; opacity: 0.92; }
+    .form-hint { font-size: 13px; color: #e2e8f0; line-height: 1.45; }
     .discord-footer {
       display: flex;
       gap: 10px;
-      padding: 12px 16px;
+      padding: 14px 20px;
       border-top: 1px solid rgba(167, 139, 250, 0.26);
       background: rgba(124, 58, 237, 0.06);
     }
     .btn-discord-footer {
       font-family: var(--font-ui);
-      padding: 8px 16px;
+      padding: 10px 18px;
       background: rgba(124, 58, 237, 0.12);
       border: 1px solid rgba(167, 139, 250, 0.4);
       border-radius: 6px;
-      color: #ddd6fe;
-      font-size: 16px;
+      color: #f1f5f9;
+      font-size: 17px;
       font-weight: 600;
       cursor: pointer;
       transition: border-color .07s ease-out, background .07s ease-out, color .07s ease-out, box-shadow .07s ease-out;
@@ -617,7 +619,7 @@
       min-width: 0;
       border-color: rgba(196, 181, 253, 0.52);
       background: rgba(124, 58, 237, 0.28);
-      color: #f5f3ff;
+      color: #ffffff;
       font-weight: 700;
     }
     .btn-discord-footer--primary:hover {
@@ -627,8 +629,9 @@
       box-shadow: 0 0 18px rgba(124, 58, 237, 0.32);
     }
 
-    /* ── Modal confirmation (suppression config surveillance) ─ */
-    #confirm-remove-watch-modal {
+    /* ── Modales confirmation (config / retrait fichier) ─ */
+    #confirm-remove-watch-modal,
+    #confirm-remove-file-modal {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -742,7 +745,13 @@
     }
     .control-status-card pre {
       font-family: 'Cascadia Code', Consolas, monospace;
-      font-size: 12.5px; line-height: 1.45; overflow: auto; max-height: 240px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      overflow: auto;
+      height: 140px;
+      min-height: 140px;
+      max-height: 140px;
+      box-sizing: border-box;
       scrollbar-gutter: stable;
       background: var(--bg); padding: 10px 12px; border-radius: 6px; margin: 0;
       color: var(--text); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-all;
@@ -801,6 +810,11 @@
       width: 100%; padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border);
       border-radius: 6px; color: var(--text); font-size: 14.5px; font-family: inherit;
     }
+    .control-input[readonly] {
+      opacity: 0.9;
+      cursor: default;
+      background: var(--bg);
+    }
     .control-input.mono { font-family: 'Cascadia Code', Consolas, monospace; font-size: 12.5px; }
     .control-select { cursor: pointer; }
     .control-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -856,16 +870,10 @@
       box-shadow: 0 0 14px rgba(220, 38, 38, 0.22);
     }
     .control-hint { font-size: 14px; color: var(--muted); line-height: 1.45; margin: 0; }
-    /*
-      Hauteur du bandeau : 90 % de la hauteur du panneau config (min 40 px, max 120 px).
-      #panel-control + .control-layout en colonne flex fournissent la référence pour le %.
-    */
     .control-feedback-slot {
       flex: 0 0 auto;
-      height: 90%;
-      min-height: 40px;
-      max-height: 120px;
       margin-bottom: 0;
+      max-height: 52px;
       overflow: hidden;
       box-sizing: border-box;
     }
@@ -876,24 +884,22 @@
     #control-feedback {
       font-size: 12.5px;
       line-height: 1.35;
-      padding: 6px 10px;
+      padding: 5px 10px;
       border-radius: 6px;
       display: none;
       margin: 0;
       box-sizing: border-box;
-      max-height: 100%;
+      max-height: 52px;
       overflow-x: hidden;
       overflow-y: auto;
       scrollbar-gutter: stable;
     }
     #control-feedback.ok {
       display: block;
-      height: 100%;
       background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32); color: #86efac;
     }
     #control-feedback.err {
       display: block;
-      height: 100%;
       background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.32); color: #fca5a5;
     }
 
@@ -1047,13 +1053,13 @@
           <h3>Cibler un dossier (tous les fichiers)</h3>
           <p class="control-hint">Surveille tous les fichiers du dossier (non récursif).</p>
           <input class="control-input mono" id="ctl-setup-all-dir" type="text" placeholder="/chemin/vers/dossier" />
-          <button type="button" class="btn-control primary" onclick="ctlSetupAll()">Enregistrer</button>
+          <button type="button" class="btn-control primary" id="btn-setup-all" onclick="onSetupAllButtonClick()">Enregistrer</button>
         </div>
         <div class="control-card">
           <h3>Cibler un fichier (chemin complet)</h3>
           <p class="control-hint">Chemin absolu obligatoire.</p>
           <input class="control-input mono" id="ctl-setup-file-path" type="text" placeholder="/home/user/fichier.txt" />
-          <button type="button" class="btn-control primary" onclick="ctlSetupFile()">Enregistrer</button>
+          <button type="button" class="btn-control primary" id="btn-setup-file" onclick="onSetupFileButtonClick()">Enregistrer</button>
         </div>
         <div class="control-card">
           <h3>Ajouter un fichier (mode liste ciblée)</h3>
@@ -1066,7 +1072,7 @@
             <h3>Retirer un fichier de la liste</h3>
             <p class="control-hint">Retire le fichier choisi de la liste surveillée.</p>
             <select class="control-select mono" id="ctl-remove-select"><option value="">— Choisir un fichier —</option></select>
-            <button type="button" class="btn-control" onclick="ctlRemoveFile()">Retirer</button>
+            <button type="button" class="btn-control" onclick="openConfirmRemoveFile()">Retirer</button>
           </div>
           <div class="control-card control-card--monitor">
             <h3>Surveillance (terminal intégré)</h3>
@@ -1186,6 +1192,22 @@
     <div class="confirm-remove-footer">
       <button type="button" class="btn-control" onclick="closeConfirmRemoveWatch()">Annuler</button>
       <button type="button" class="btn-control danger" onclick="ctlRemoveWatchConfirm()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal confirmation retrait fichier ─────────────────── -->
+<div id="confirm-remove-file-overlay" class="overlay" onclick="handleConfirmRemoveFileOverlay(event)">
+  <div id="confirm-remove-file-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-remove-file-title" onclick="event.stopPropagation()">
+    <div class="confirm-remove-header">
+      <span style="font-size:20px" aria-hidden="true">⚠️</span>
+      <h3 id="confirm-remove-file-title">Retirer un fichier</h3>
+      <div class="modal-close" onclick="closeConfirmRemoveFile()" title="Fermer">✕</div>
+    </div>
+    <div class="confirm-remove-body" id="confirm-remove-file-msg"></div>
+    <div class="confirm-remove-footer">
+      <button type="button" class="btn-control" onclick="closeConfirmRemoveFile()">Annuler</button>
+      <button type="button" class="btn-control danger" onclick="ctlRemoveFileConfirm()">Retirer</button>
     </div>
   </div>
 </div>
@@ -1499,6 +1521,27 @@ function handleConfirmRemoveWatchOverlay(e) {
   if (e.target === document.getElementById('confirm-remove-watch-overlay')) closeConfirmRemoveWatch();
 }
 
+let _pendingRemoveFilename = '';
+function openConfirmRemoveFile() {
+  const sel = document.getElementById('ctl-remove-select');
+  const filename = sel.value.trim();
+  if (!filename) {
+    ctlFeedback('Choisissez un fichier dans la liste.', false);
+    return;
+  }
+  _pendingRemoveFilename = filename;
+  document.getElementById('confirm-remove-file-msg').textContent =
+    'Retirer « ' + filename + ' » de la liste surveillée ?';
+  document.getElementById('confirm-remove-file-overlay').classList.add('open');
+}
+function closeConfirmRemoveFile() {
+  document.getElementById('confirm-remove-file-overlay').classList.remove('open');
+  _pendingRemoveFilename = '';
+}
+function handleConfirmRemoveFileOverlay(e) {
+  if (e.target === document.getElementById('confirm-remove-file-overlay')) closeConfirmRemoveFile();
+}
+
 async function saveDiscordConfig() {
   const payload = {
     webhook_url: document.getElementById('discord-webhook').value.trim(),
@@ -1541,7 +1584,14 @@ async function testDiscord() {
   }
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAlertModal(); closeDiscordModal(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeAlertModal();
+    closeDiscordModal();
+    closeConfirmRemoveWatch();
+    closeConfirmRemoveFile();
+  }
+});
 
 /* ─────────────────────────────────────────────────────────────
    Onglet Surveillance & configuration (API /api/control)
@@ -1634,8 +1684,81 @@ function syncChmodFieldsFromSelection() {
 function setControlStatusViewAndCache(snap) {
   document.getElementById('control-status-json').textContent = JSON.stringify(snap, null, 2);
   applySnapshotToSelects(snap);
+  syncControlPathFieldsFromSnapshot(snap);
   cachedControlSnapshot = snap;
   lastControlStatusFetchAt = Date.now();
+}
+
+/** Verrouille le champ « dossier » ou « fichier » selon le mode serveur ; bouton Enregistrer ⇄ Modifier. */
+function syncControlPathFieldsFromSnapshot(snap) {
+  const dirInp = document.getElementById('ctl-setup-all-dir');
+  const fileInp = document.getElementById('ctl-setup-file-path');
+  const btnAll = document.getElementById('btn-setup-all');
+  const btnFile = document.getElementById('btn-setup-file');
+  if (!dirInp || !fileInp || !btnAll || !btnFile) return;
+
+  if (!snap || !snap.configured) {
+    dirInp.value = '';
+    fileInp.value = '';
+    dirInp.readOnly = false;
+    fileInp.readOnly = false;
+    btnAll.textContent = 'Enregistrer';
+    btnFile.textContent = 'Enregistrer';
+    btnAll.classList.remove('warn');
+    btnFile.classList.remove('warn');
+    return;
+  }
+
+  dirInp.value = snap.watch_directory || '';
+
+  if (snap.watch_all) {
+    fileInp.value = '';
+    dirInp.readOnly = true;
+    fileInp.readOnly = false;
+    btnAll.textContent = 'Modifier';
+    btnAll.classList.add('warn');
+    btnFile.textContent = 'Enregistrer';
+    btnFile.classList.remove('warn');
+  } else if (snap.mode_key === 'single_file') {
+    const p = snap.files && snap.files[0] ? (snap.files[0].path || '') : '';
+    fileInp.value = p;
+    dirInp.readOnly = false;
+    fileInp.readOnly = true;
+    btnAll.textContent = 'Enregistrer';
+    btnAll.classList.remove('warn');
+    btnFile.textContent = 'Modifier';
+    btnFile.classList.add('warn');
+  } else {
+    fileInp.value = '';
+    dirInp.readOnly = false;
+    fileInp.readOnly = false;
+    btnAll.textContent = 'Enregistrer';
+    btnFile.textContent = 'Enregistrer';
+    btnAll.classList.remove('warn');
+    btnFile.classList.remove('warn');
+  }
+}
+
+function onSetupAllButtonClick() {
+  const btn = document.getElementById('btn-setup-all');
+  if (btn.textContent.trim() === 'Modifier') {
+    document.getElementById('ctl-setup-all-dir').readOnly = false;
+    btn.textContent = 'Enregistrer';
+    btn.classList.remove('warn');
+    return;
+  }
+  ctlSetupAll();
+}
+
+function onSetupFileButtonClick() {
+  const btn = document.getElementById('btn-setup-file');
+  if (btn.textContent.trim() === 'Modifier') {
+    document.getElementById('ctl-setup-file-path').readOnly = false;
+    btn.textContent = 'Enregistrer';
+    btn.classList.remove('warn');
+    return;
+  }
+  ctlSetupFile();
 }
 
 function applySnapshotToSelects(snap) {
@@ -1673,6 +1796,7 @@ async function refreshControlStatus(forceRefresh) {
   ) {
     pre.textContent = JSON.stringify(cachedControlSnapshot, null, 2);
     applySnapshotToSelects(cachedControlSnapshot);
+    syncControlPathFieldsFromSnapshot(cachedControlSnapshot);
     return;
   }
   /* Ne pas vider le JSON si un état existe : évite le saut de mise en page au clic sur Actualiser */
@@ -1718,11 +1842,11 @@ async function ctlAddFile() {
   else ctlFeedback(data.error || 'Échec.', false);
 }
 
-async function ctlRemoveFile() {
+async function ctlRemoveFileConfirm() {
+  const filename = _pendingRemoveFilename;
+  closeConfirmRemoveFile();
+  if (!filename) return;
   ctlFeedback('', true);
-  const sel = document.getElementById('ctl-remove-select');
-  const filename = sel.value.trim();
-  if (!filename) { ctlFeedback('Choisissez un fichier dans la liste.', false); return; }
   const out = await ctlPost('/api/control/remove-file', { filename });
   if (!out) return;
   const { res, data } = out;
