@@ -26,12 +26,29 @@
 
     /* ── Reset ───────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
+    html {
+      height: 100%;
+      max-height: 100%;
+    }
     body {
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
       font-family: 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      display: flex; flex-direction: column; min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    @supports (height: 100dvh) {
+      html {
+        height: 100dvh;
+        max-height: 100dvh;
+      }
+      body {
+        height: 100dvh;
+        max-height: 100dvh;
+      }
     }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
@@ -43,7 +60,8 @@
       padding: 16px 26px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      position: sticky; top: 0; z-index: 100;
+      flex-shrink: 0;
+      z-index: 100;
     }
     .header-badge {
       background: var(--red);
@@ -122,20 +140,40 @@
 
     /* ── Main ────────────────────────────────────────────────── */
     main {
-      flex: 1; min-height: 0; padding: 22px 26px; display: flex; flex-direction: column;
-      gap: 18px; max-width: 1400px; width: 100%; margin: 0 auto;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      padding: 16px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
     }
     #panel-logs {
-      flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
     #panel-control {
-      flex: 1; min-height: 0; overflow-y: auto;
-      padding-right: 4px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
       scrollbar-gutter: stable;
     }
 
     /* ── Stats ───────────────────────────────────────────────── */
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      flex-shrink: 0;
+    }
     .stat-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 14px 18px;
@@ -150,7 +188,13 @@
     .stat-card.error .stat-value { color: var(--red); }
 
     /* ── Toolbar ─────────────────────────────────────────────── */
-    .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
     .filter-group { display: flex; gap: 5px; }
     .btn {
       padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
@@ -185,8 +229,11 @@
     }
     #log-count { font-weight: 700; color: var(--text); }
     #log-list {
-      flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-      scrollbar-gutter: stable;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
     }
 
     /* ── Log entry ───────────────────────────────────────────── */
@@ -236,8 +283,13 @@
 
     /* ── Empty state ─────────────────────────────────────────── */
     #empty-state {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 10px; padding: 60px 20px; color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: min(48px, 8vh) 20px;
+      color: var(--muted);
     }
     #empty-state .icon { font-size: 36px; opacity: .3; }
     #empty-state p { font-size: 14px; }
@@ -391,6 +443,44 @@
     }
     .btn-test:hover { border-color: #555; }
 
+    /* ── Modal confirmation (suppression config surveillance) ─ */
+    #confirm-remove-watch-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: min(440px, 93vw);
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.8);
+    }
+    .confirm-remove-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .confirm-remove-header h3 {
+      font-size: 14px;
+      font-weight: 700;
+      flex: 1;
+      margin: 0;
+    }
+    .confirm-remove-body {
+      padding: 18px 16px;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .confirm-remove-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
     /* ── Toast ───────────────────────────────────────────────── */
     #toast-container { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
     .toast {
@@ -424,7 +514,10 @@
 
     /* ── Onglets Journal / Surveillance ──────────────────────── */
     .main-tabs {
-      display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
     }
     .main-tab {
       padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
@@ -657,7 +750,7 @@
         <div class="control-card">
           <h3><span class="num">5</span>Supprimer toute la configuration</h3>
           <p class="control-hint">Réinitialise complètement la surveillance.</p>
-          <button type="button" class="btn-control danger" onclick="ctlRemoveWatch()">Supprimer la configuration</button>
+          <button type="button" class="btn-control danger" onclick="openConfirmRemoveWatch()">Supprimer la configuration</button>
         </div>
         <div class="control-chmod-monitor-row">
         <div class="control-card control-card--chmod">
@@ -744,6 +837,24 @@
     <div class="discord-footer">
       <button class="btn-test" onclick="testDiscord()">🧪 Tester</button>
       <button class="btn-save" onclick="saveDiscordConfig()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal confirmation suppression configuration ─────────── -->
+<div id="confirm-remove-watch-overlay" class="overlay" onclick="handleConfirmRemoveWatchOverlay(event)">
+  <div id="confirm-remove-watch-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-remove-watch-title" onclick="event.stopPropagation()">
+    <div class="confirm-remove-header">
+      <span style="font-size:18px" aria-hidden="true">⚠️</span>
+      <h3 id="confirm-remove-watch-title">Supprimer la configuration</h3>
+      <div class="modal-close" onclick="closeConfirmRemoveWatch()" title="Fermer">✕</div>
+    </div>
+    <div class="confirm-remove-body">
+      Toute la configuration de surveillance sera effacée (dossier ciblé, liste de fichiers, mode). Cette action ne peut pas être annulée depuis le panel.
+    </div>
+    <div class="confirm-remove-footer">
+      <button type="button" class="btn-control" onclick="closeConfirmRemoveWatch()">Annuler</button>
+      <button type="button" class="btn-control danger" onclick="ctlRemoveWatchConfirm()">Supprimer</button>
     </div>
   </div>
 </div>
@@ -1027,6 +1138,16 @@ async function openDiscordModal() {
 function closeDiscordModal() { document.getElementById('discord-overlay').classList.remove('open'); }
 function handleDiscordOverlay(e) { if (e.target === document.getElementById('discord-overlay')) closeDiscordModal(); }
 
+function openConfirmRemoveWatch() {
+  document.getElementById('confirm-remove-watch-overlay').classList.add('open');
+}
+function closeConfirmRemoveWatch() {
+  document.getElementById('confirm-remove-watch-overlay').classList.remove('open');
+}
+function handleConfirmRemoveWatchOverlay(e) {
+  if (e.target === document.getElementById('confirm-remove-watch-overlay')) closeConfirmRemoveWatch();
+}
+
 async function saveDiscordConfig() {
   const payload = {
     webhook_url: document.getElementById('discord-webhook').value.trim(),
@@ -1217,8 +1338,8 @@ async function ctlRemoveFile() {
   else ctlFeedback(data.error || 'Échec.', false);
 }
 
-async function ctlRemoveWatch() {
-  if (!confirm('Supprimer toute la configuration de surveillance ?')) return;
+async function ctlRemoveWatchConfirm() {
+  closeConfirmRemoveWatch();
   ctlFeedback('', true);
   const out = await ctlPost('/api/control/remove-watch', {});
   if (!out) return;
