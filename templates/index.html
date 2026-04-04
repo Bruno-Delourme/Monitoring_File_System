@@ -419,8 +419,9 @@
     }
     .overlay.open { display: flex; }
 
-    /* Modale alerte : pas de flou arrière-plan (blur très coûteux → ouverture lente sous Chrome / Windows). */
-    #alert-overlay {
+    /* Alerte + Discord : pas de flou plein écran (blur coûteux → sensation de lenteur). */
+    #alert-overlay,
+    #discord-overlay {
       backdrop-filter: none;
       background: rgba(0, 0, 0, 0.82);
     }
@@ -583,7 +584,7 @@
         0 24px 80px rgba(0, 0, 0, 0.78),
         0 0 0 1px rgba(124, 58, 237, 0.12),
         0 0 40px rgba(124, 58, 237, 0.14);
-      animation: modalIn .18s ease;
+      animation: modalIn .12s ease-out;
     }
     .discord-header {
       display: flex;
@@ -817,6 +818,9 @@
       align-items: stretch;
       min-width: 0;
     }
+    .control-bottom-row > .control-card > .btn-control {
+      margin-top: auto;
+    }
     .control-card--monitor {
       padding: 12px 14px;
       gap: 8px;
@@ -828,9 +832,6 @@
     .control-card--monitor .control-hint {
       font-size: 14px;
       line-height: 1.4;
-    }
-    .control-card--monitor .btn-control.primary {
-      margin-top: auto;
     }
     .control-card--danger-reset {
       padding: 12px 14px;
@@ -1568,10 +1569,18 @@ function handleAlertOverlay(e) { if (e.target === document.getElementById('alert
    Discord modal
    ───────────────────────────────────────────────────────────── */
 async function openDiscordModal() {
-  const cfg = await fetch('/api/discord-config', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
-  document.getElementById('discord-webhook').value    = cfg.webhook_url || '';
-  document.getElementById('discord-panel-url').value  = cfg.panel_url   || 'http://192.168.1.68:5000';
   document.getElementById('discord-overlay').classList.add('open');
+  const wh = document.getElementById('discord-webhook');
+  const pu = document.getElementById('discord-panel-url');
+  try {
+    const res = await fetch('/api/discord-config', { credentials: 'same-origin' });
+    const cfg = await res.json();
+    wh.value = cfg.webhook_url || '';
+    pu.value = cfg.panel_url || 'http://192.168.1.68:5000';
+  } catch {
+    wh.value = '';
+    pu.value = 'http://192.168.1.68:5000';
+  }
 }
 function closeDiscordModal() { document.getElementById('discord-overlay').classList.remove('open'); }
 function handleDiscordOverlay(e) { if (e.target === document.getElementById('discord-overlay')) closeDiscordModal(); }
